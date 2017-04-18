@@ -10,20 +10,11 @@ import (
 	"strings"
 )
 
-func User(hostname string) string {
-	return ""
+type UserSettings struct {
+	systemConfig *Config
+	userConfig   *Config
+	username     string
 }
-
-type ConfigFinder struct {
-	IgnoreSystemConfig bool
-	IgnoreUserConfig   bool
-}
-
-func (c *ConfigFinder) User(hostname string) string {
-	return ""
-}
-
-var DefaultFinder = &ConfigFinder{IgnoreSystemConfig: false, IgnoreUserConfig: false}
 
 func parseFile(filename string) (*Config, error) {
 	f, err := os.Open(filename)
@@ -31,10 +22,12 @@ func parseFile(filename string) (*Config, error) {
 		return nil, err
 	}
 	defer f.Close()
-	return LoadReader(f)
+	return Decode(f)
 }
 
-func LoadReader(r io.Reader) (c *Config, err error) {
+// Decode reads r into a Config, or returns an error if r could not be parsed as
+// an SSH config file.
+func Decode(r io.Reader) (c *Config, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if _, ok := r.(runtime.Error); ok {
