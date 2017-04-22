@@ -16,10 +16,10 @@ func loadFile(t *testing.T, filename string) []byte {
 
 var files = []string{"testdata/config1", "testdata/config2"}
 
-func TestLoadReader(t *testing.T) {
+func TestDecode(t *testing.T) {
 	for _, filename := range files {
 		data := loadFile(t, filename)
-		cfg, err := LoadReader(bytes.NewReader(data))
+		cfg, err := Decode(bytes.NewReader(data))
 		if err != nil {
 			t.Fatal(err)
 		}
