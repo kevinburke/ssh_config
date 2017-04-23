@@ -75,8 +75,12 @@ func (p *sshParser) parseStart() sshParserStateFn {
 
 func (p *sshParser) parseKV() sshParserStateFn {
 	key := p.getToken()
-	p.assume(tokenString)
+	hasEquals := false
 	val := p.getToken()
+	if val.typ == tokenEquals {
+		hasEquals = true
+		val = p.getToken()
+	}
 	comment := ""
 	tok := p.peek()
 	if tok.typ == tokenComment && tok.Position.Line == val.Position.Line {
@@ -84,16 +88,26 @@ func (p *sshParser) parseKV() sshParserStateFn {
 		comment = tok.val
 	}
 	if key.val == "Host" {
-		patterns := strings.Split(val.val, " ")
-		for i := range patterns {
-			if patterns[i] == "" {
-				patterns = append(patterns[:i], patterns[i+1:]...)
+		strPatterns := strings.Split(val.val, " ")
+		for i := range strPatterns {
+			if strPatterns[i] == "" {
+				strPatterns = append(strPatterns[:i], strPatterns[i+1:]...)
 			}
+		}
+		patterns := make([]*Pattern, len(strPatterns))
+		for i := range strPatterns {
+			pat, err := NewPattern(strPatterns[i])
+			if err != nil {
+				p.raiseError(val, "Invalid host pattern: %v", err)
+				return nil
+			}
+			patterns[i] = pat
 		}
 		p.config.Hosts = append(p.config.Hosts, &Host{
 			Patterns:   patterns,
 			Nodes:      make([]Node, 0),
 			EOLComment: comment,
+			hasEquals:  hasEquals,
 		})
 		return p.parseStart
 	}
@@ -102,6 +116,7 @@ func (p *sshParser) parseKV() sshParserStateFn {
 		Key:          key.val,
 		Value:        val.val,
 		Comment:      comment,
+		hasEquals:    hasEquals,
 		leadingSpace: uint16(key.Position.Col) - 1,
 		position:     key.Position,
 	}

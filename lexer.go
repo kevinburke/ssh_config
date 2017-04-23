@@ -36,21 +36,50 @@ func (s *sshLexer) lexComment(previousState sshLexStateFn) sshLexStateFn {
 	}
 }
 
+// lex the space after an equals sign in a function
+func (s *sshLexer) lexRspace() sshLexStateFn {
+	for {
+		next := s.peek()
+		if !isSpace(next) {
+			break
+		}
+		s.skip()
+	}
+	return s.lexRvalue
+}
+
+func (s *sshLexer) lexEquals() sshLexStateFn {
+	for {
+		next := s.peek()
+		if next == '=' {
+			s.emit(tokenEquals)
+			s.skip()
+			return s.lexRspace
+		}
+		// TODO error handling here; newline eof etc.
+		if !isSpace(next) {
+			break
+		}
+		s.skip()
+	}
+	return s.lexRvalue
+}
+
 func (s *sshLexer) lexKey() sshLexStateFn {
 	growingString := ""
 
 	for r := s.peek(); isKeyChar(r); r = s.peek() {
 		// simplified a lot here
-		if isSpace(r) {
+		if isSpace(r) || r == '=' {
 			s.emitWithValue(tokenKey, growingString)
 			s.skip()
-			return s.lexRvalue
+			return s.lexEquals
 		}
 		growingString += string(r)
 		s.next()
 	}
 	s.emitWithValue(tokenKey, growingString)
-	return s.lexVoid
+	return s.lexEquals
 }
 
 func (s *sshLexer) lexRvalue() sshLexStateFn {

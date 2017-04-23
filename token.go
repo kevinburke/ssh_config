@@ -28,6 +28,7 @@ const (
 	tokenEmptyLine
 	tokenComment
 	tokenKey
+	tokenEquals
 	tokenString
 )
 
