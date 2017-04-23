@@ -247,6 +247,7 @@ func (c *Config) String() string {
 type Pattern struct {
 	str   string // Its appearance in the file, not the value that gets compiled.
 	regex *regexp.Regexp
+	not   bool // True if this is a negated match
 }
 
 // String prints the string representation of the pattern.
@@ -275,6 +276,14 @@ func NewPattern(s string) (*Pattern, error) {
 	// The following pattern would match any host in the 192.168.0.[0-9] network range:
 	//
 	//		Host 192.168.0.?
+	if s == "" {
+		return nil, errors.New("ssh_config: empty pattern")
+	}
+	negated := false
+	if s[0] == '!' {
+		negated = true
+		s = s[1:]
+	}
 	var buf bytes.Buffer
 	buf.WriteByte('^')
 	for i := 0; i < len(s); i++ {
@@ -297,7 +306,7 @@ func NewPattern(s string) (*Pattern, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Pattern{str: s, regex: r}, nil
+	return &Pattern{str: s, regex: r, not: negated}, nil
 }
 
 type Host struct {
@@ -317,12 +326,22 @@ type Host struct {
 // a description of the rules that provide a match, see the manpage for
 // ssh_config.
 func (h *Host) Matches(alias string) bool {
+	found := false
 	for i := range h.Patterns {
 		if h.Patterns[i].regex.MatchString(alias) {
-			return true
+			if h.Patterns[i].not == true {
+				// Negated match. "A pattern entry may be negated by prefixing
+				// it with an exclamation mark (`!'). If a negated entry is
+				// matched, then the Host entry is ignored, regardless of
+				// whether any other patterns on the line match. Negated matches
+				// are therefore useful to provide exceptions for wildcard
+				// matches."
+				return false
+			}
+			found = true
 		}
 	}
-	return false
+	return found
 }
 
 // String prints h as it would appear in a config file. Minor tweaks may be

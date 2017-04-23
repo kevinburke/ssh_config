@@ -159,6 +159,8 @@ var matchTests = []struct {
 	{[]string{"*.co.uk"}, "subdomain.bbc.co.uk", true},
 	{[]string{"*.*.co.uk"}, "bbc.co.uk", false},
 	{[]string{"*.*.co.uk"}, "subdomain.bbc.co.uk", true},
+	{[]string{"*.example.com", "!*.dialup.example.com", "foo.dialup.example.com"}, "foo.dialup.example.com", false},
+	{[]string{"test.*", "!test.host"}, "test.host", false},
 }
 
 func TestMatches(t *testing.T) {
