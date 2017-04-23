@@ -4,7 +4,16 @@ This is a Go parser for `ssh_config` files. Importantly, this parser attempts
 to preserve comments in a given file, so you can manipulate a `ssh_config` file
 from a program, if your heart desires.
 
-Example usage:
+The `ssh_config` `Get()` and `GetStrict()` functions will attempt to read values
+from `$HOME/.ssh/config`, falling back to `/etc/ssh/ssh_config`. The first
+argument is the host name to match on, and the second argument is the key you
+want to retrieve.
+
+```go
+port := ssh_config.Get("myhost", "Port")
+```
+
+Here's how you can manipulate an SSH config file, and then write it back.
 
 ```go
 f, _ := os.Open(filepath.Join(os.Getenv("HOME"), ".ssh", "config"))
@@ -20,12 +29,13 @@ for _, host := range cfg.Hosts {
 fmt.Println(cfg.String())
 ```
 
-The `ssh_config` program will attempt to read values from `$HOME/.ssh/config`,
-falling back to `/etc/ssh/ssh_config`.
+## Spec compliance
 
-```go
-port := ssh_config.Get("myhost", "Port")
-```
+Wherever possible we try to implement the specification as documented in
+the `ssh_config` manpage. Unimplemented features should be present in the
+[issues][issues] list.
+
+[issues]: https://github.com/kevinburke/ssh_config/issues
 
 ## Donating
 
