@@ -38,6 +38,9 @@ func userConfigFinder() string {
 	return filepath.Join(home, ".ssh", "config")
 }
 
+// DefaultUserSettings is the default UserSettings and is used by Get and
+// GetStrict. It checks both $HOME/.ssh/config and /etc/ssh/ssh_config for
+// keys, and it will return parse errors (if any).
 var DefaultUserSettings = &UserSettings{
 	IgnoreErrors:       false,
 	systemConfigFinder: systemConfigFinder,
@@ -55,10 +58,26 @@ func findVal(c *Config, alias, key string) (string, error) {
 	return c.Get(alias, key)
 }
 
+// Get finds the first value for key within a declaration that matches the
+// alias. Get returns the empty string if no value was found, or if IgnoreErrors
+// is false and we could not parse the configuration file. Use GetStrict to
+// disambiguate the latter cases.
+//
+// The match for key is case insensitive.
+//
+// Get is a wrapper around DefaultUserSettings.Get.
 func Get(alias, key string) string {
 	return DefaultUserSettings.Get(alias, key)
 }
 
+// GetStrict finds the first value for key within a declaration that matches the
+// alias. For more information on how patterns are matched, see the manpage for
+// ssh_config.
+//
+// error will be non-nil if and only if a user's configuration file or the
+// system configuration file could not be parsed, and u.IgnoreErrors is false.
+//
+// GetStrict is a wrapper around DefaultUserSettings.GetStrict.
 func GetStrict(alias, key string) (string, error) {
 	return DefaultUserSettings.GetStrict(alias, key)
 }
@@ -68,7 +87,7 @@ func GetStrict(alias, key string) (string, error) {
 // is false and we could not parse the configuration file. Use GetStrict to
 // disambiguate the latter cases.
 //
-// The match for key is case sensitive.
+// The match for key is case insensitive.
 func (u *UserSettings) Get(alias, key string) string {
 	val, err := u.GetStrict(alias, key)
 	if err != nil {
@@ -77,11 +96,12 @@ func (u *UserSettings) Get(alias, key string) string {
 	return val
 }
 
-// Get finds the first value for key within a declaration that matches the
-// alias. For more on the pattern syntax, see the manpage for ssh_config.
+// GetStrict finds the first value for key within a declaration that matches the
+// alias. For more information on how patterns are matched, see the manpage for
+// ssh_config.
 //
-// error will be non-nil if and only if the user's configuration file or the
-// system configuration file could not be parsed, and u.IgnoreErrors is true.
+// error will be non-nil if and only if a user's configuration file or the
+// system configuration file could not be parsed, and u.IgnoreErrors is false.
 func (u *UserSettings) GetStrict(alias, key string) (string, error) {
 	u.loadConfigs.Do(func() {
 		// can't parse user file, that's ok.
@@ -146,11 +166,18 @@ func Decode(r io.Reader) (c *Config, err error) {
 // Config represents an SSH config file.
 type Config struct {
 	position Position
-	Hosts    []*Host
-	// Set to true to silently ignore errors parsing the config file.
-	IgnoreErrors bool
+	// A list of hosts to match against. The file begins with an implicit
+	// "Host *" declaration matching all hosts.
+	Hosts []*Host
 }
 
+// Get finds the first value in the configuration that matches the alias and
+// contains key. Get returns the empty string if no value was found, the Config
+// contains an invalid conditional Include value.
+//
+// The match for key is case insensitive.
+//
+// Get is a wrapper around DefaultUserSettings.Get.
 func (c *Config) Get(alias, key string) (string, error) {
 	lowerKey := strings.ToLower(key)
 	for _, host := range c.Hosts {
