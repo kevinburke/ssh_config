@@ -1,3 +1,28 @@
+// Package ssh_config provides tools for manipulating SSH config files.
+//
+// Importantly, this parser attempts to preserve comments in a given file, so
+// you can manipulate a `ssh_config` file from a program, if your heart desires.
+//
+// The Get() and GetStrict() functions will attempt to read values from
+// `$HOME/.ssh/config`, falling back to `/etc/ssh/ssh_config`. The first
+// argument is the host name to match on, and the second argument is the key you
+// want to retrieve.
+//
+// 		port := ssh_config.Get("myhost", "Port")
+//
+// Here's how you can manipulate an SSH config file, and then write it back.
+//
+//	f, _ := os.Open(filepath.Join(os.Getenv("HOME"), ".ssh", "config"))
+//	cfg, _ := ssh_config.Decode(f)
+//	for _, host := range cfg.Hosts {
+//		fmt.Println("patterns:", host.Patterns)
+//		for _, node := range host.Nodes {
+//			fmt.Println(node.String())
+//		}
+//	}
+//
+//	// Write the cfg back to disk:
+//	fmt.Println(cfg.String())
 package ssh_config
 
 import (
@@ -208,6 +233,7 @@ func (c *Config) Get(alias, key string) (string, error) {
 	return "", nil
 }
 
+// String returns a string representation of the Config file.
 func (c *Config) String() string {
 	var buf bytes.Buffer
 	for i := range c.Hosts {
@@ -216,11 +242,14 @@ func (c *Config) String() string {
 	return buf.String()
 }
 
+// Pattern is a pattern in a Host declaration. Patterns are read-only values;
+// create a new one with NewPattern().
 type Pattern struct {
-	str   string
+	str   string // Its appearance in the file, not the value that gets compiled.
 	regex *regexp.Regexp
 }
 
+// String prints the string representation of the pattern.
 func (p Pattern) String() string {
 	return p.str
 }
@@ -284,17 +313,20 @@ type Host struct {
 	implicit bool
 }
 
+// Matches returns true if the Host matches for the given alias. For
+// a description of the rules that provide a match, see the manpage for
+// ssh_config.
 func (h *Host) Matches(alias string) bool {
-	found := false
 	for i := range h.Patterns {
 		if h.Patterns[i].regex.MatchString(alias) {
-			found = true
-			break
+			return true
 		}
 	}
-	return found
+	return false
 }
 
+// String prints h as it would appear in a config file. Minor tweaks may be
+// present in the whitespace in the printed file.
 func (h *Host) String() string {
 	var buf bytes.Buffer
 	if h.implicit == false {
@@ -306,7 +338,7 @@ func (h *Host) String() string {
 			buf.WriteString(" ")
 		}
 		for i, pat := range h.Patterns {
-			buf.WriteString(pat.str)
+			buf.WriteString(pat.String())
 			if i < len(h.Patterns)-1 {
 				buf.WriteString(" ")
 			}
@@ -324,11 +356,14 @@ func (h *Host) String() string {
 	return buf.String()
 }
 
+// Node represents a line in a Config.
 type Node interface {
 	Pos() Position
 	String() string
 }
 
+// KV is a line in the config file that contains a key, a value, and possibly
+// a comment.
 type KV struct {
 	Key          string
 	Value        string
@@ -338,10 +373,13 @@ type KV struct {
 	position     Position
 }
 
+// Pos returns k's Position.
 func (k *KV) Pos() Position {
 	return k.position
 }
 
+// String prints k as it was parsed in the config file. There may be slight
+// changes to the whitespace between values.
 func (k *KV) String() string {
 	if k == nil {
 		return ""
@@ -357,16 +395,19 @@ func (k *KV) String() string {
 	return line
 }
 
+// Empty is a line in the config file that contains only whitespace or comments.
 type Empty struct {
 	Comment      string
 	leadingSpace uint16 // TODO handle spaces vs tabs.
 	position     Position
 }
 
+// Pos returns e's Position.
 func (e *Empty) Pos() Position {
 	return e.position
 }
 
+// String prints e as it was parsed in the config file.
 func (e *Empty) String() string {
 	if e == nil {
 		return ""
