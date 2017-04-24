@@ -52,15 +52,17 @@ type UserSettings struct {
 	IgnoreErrors       bool
 }
 
-func userConfigFinder() string {
+func homedir() string {
 	user, err := osuser.Current()
-	var home string
 	if err == nil {
-		home = user.HomeDir
+		return user.HomeDir
 	} else {
-		home = os.Getenv("HOME")
+		return os.Getenv("HOME")
 	}
-	return filepath.Join(home, ".ssh", "config")
+}
+
+func userConfigFinder() string {
+	return filepath.Join(homedir(), ".ssh", "config")
 }
 
 // DefaultUserSettings is the default UserSettings and is used by Get and
@@ -164,27 +166,44 @@ func (u *UserSettings) GetStrict(alias, key string) (string, error) {
 }
 
 func parseFile(filename string) (*Config, error) {
+	return parseWithDepth(filename, 0)
+}
+
+func parseWithDepth(filename string, depth uint8) (*Config, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	return Decode(f)
+	return decode(f, isSystem(filename), depth)
+}
+
+func isSystem(filename string) bool {
+	// TODO i'm not sure this is the best way to detect a system repo
+	return strings.HasPrefix(filepath.Clean(filename), "/etc/ssh")
 }
 
 // Decode reads r into a Config, or returns an error if r could not be parsed as
 // an SSH config file.
-func Decode(r io.Reader) (c *Config, err error) {
+func Decode(r io.Reader) (*Config, error) {
+	return decode(r, false, 0)
+}
+
+func decode(r io.Reader, system bool, depth uint8) (c *Config, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if _, ok := r.(runtime.Error); ok {
 				panic(r)
 			}
+			if e, ok := r.(error); ok && e == ErrDepthExceeded {
+				err = e
+				return
+			}
 			err = errors.New(r.(string))
 		}
 	}()
 
-	c = parseSSH(lexSSH(r))
+	c = parseSSH(lexSSH(r), system, depth)
 	return c, err
 }
 
@@ -194,11 +213,12 @@ type Config struct {
 	// A list of hosts to match against. The file begins with an implicit
 	// "Host *" declaration matching all hosts.
 	Hosts []*Host
+	depth uint8
 }
 
 // Get finds the first value in the configuration that matches the alias and
-// contains key. Get returns the empty string if no value was found, the Config
-// contains an invalid conditional Include value.
+// contains key. Get returns the empty string if no value was found, or if the
+// Config contains an invalid conditional Include value.
 //
 // The match for key is case insensitive.
 //
@@ -216,14 +236,16 @@ func (c *Config) Get(alias, key string) (string, error) {
 			case *KV:
 				// "keys are case insensitive" per the spec
 				lkey := strings.ToLower(t.Key)
-				if lkey == "include" {
-					panic("can't handle Include directives")
-				}
 				if lkey == "match" {
 					panic("can't handle Match directives")
 				}
 				if lkey == lowerKey {
 					return t.Value, nil
+				}
+			case *Include:
+				val := t.Get(alias, key)
+				if val != "" {
+					return val, nil
 				}
 			default:
 				return "", fmt.Errorf("unknown Node type %v", t)
@@ -437,6 +459,90 @@ func (e *Empty) String() string {
 	return fmt.Sprintf("%s#%s", strings.Repeat(" ", int(e.leadingSpace)), e.Comment)
 }
 
+type Include struct {
+	Comment string
+	parsed  bool
+	// an include directive can include several different files, and wildcards
+	directives []string
+	// actual filenames are listed here
+	files        map[string]*Config
+	leadingSpace uint16
+	position     Position
+	depth        uint8
+}
+
+const maxRecurseDepth = 5
+
+var ErrDepthExceeded = errors.New("ssh_config: max recurse depth exceeded")
+
+// NewInclude creates a new Include with a list of files to include.
+func NewInclude(directives []string, comment string, system bool, depth uint8) (*Include, error) {
+	if depth > maxRecurseDepth {
+		return nil, ErrDepthExceeded
+	}
+	inc := &Include{
+		Comment:    comment,
+		directives: directives,
+		files:      make(map[string]*Config),
+		depth:      depth,
+	}
+	for i := range directives {
+		var path string
+		if filepath.IsAbs(directives[i]) {
+			path = directives[i]
+		} else if system {
+			path = filepath.Join("/etc/ssh", directives[i])
+		} else {
+			path = filepath.Join(homedir(), ".ssh", directives[i])
+		}
+		matches, err := filepath.Glob(path)
+		if err != nil {
+			return nil, err
+		}
+		for j := range matches {
+			if _, ok := inc.files[matches[j]]; ok {
+				// config already parsed
+				continue
+			}
+			config, err := parseWithDepth(matches[j], depth)
+			if err != nil {
+				return nil, err
+			}
+			inc.files[matches[j]] = config
+		}
+	}
+	// check depth limit
+	// for each directive:
+	// for each file in the list:
+	// - increment the depth array
+	// - parse it, return any errors
+	// - add to files map
+	return inc, nil
+}
+
+func (i *Include) Pos() Position {
+	return i.position
+}
+
+func (i *Include) Add() error {
+	return nil
+}
+
+// Get finds the first value in the Include statement
+func (i *Include) Get(alias, key string) string {
+	for _, cfg := range i.files {
+		val, err := cfg.Get(alias, key)
+		if err == nil && val != "" {
+			return val
+		}
+	}
+	return ""
+}
+
+func (i *Include) String() string {
+	return "TODO"
+}
+
 var matchAll *Pattern
 
 func init() {
@@ -450,7 +556,12 @@ func init() {
 func newConfig() *Config {
 	return &Config{
 		Hosts: []*Host{
-			&Host{implicit: true, Patterns: []*Pattern{matchAll}, Nodes: make([]Node, 0)},
+			&Host{
+				implicit: true,
+				Patterns: []*Pattern{matchAll},
+				Nodes:    make([]Node, 0),
+			},
 		},
+		depth: 0,
 	}
 }

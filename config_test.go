@@ -3,6 +3,8 @@ package ssh_config
 import (
 	"bytes"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -133,14 +135,75 @@ func TestGetEqsign(t *testing.T) {
 	}
 }
 
+var includeFile = []byte(`
+# This host should not exist, so we can use it for test purposes / it won't
+# interfere with any other configurations.
+Host kevinburke.ssh_config.test.example.com
+    Port 4567
+`)
+
 func TestInclude(t *testing.T) {
-	t.Skip("can't currently handle Include directives")
+	if testing.Short() {
+		t.Skip("skipping fs write in short mode")
+	}
+	testPath := filepath.Join(homedir(), ".ssh", "kevinburke-ssh-config-test-file")
+	err := ioutil.WriteFile(testPath, includeFile, 0644)
+	if err != nil {
+		t.Skipf("couldn't write SSH config file: %v", err.Error())
+	}
+	defer os.Remove(testPath)
 	us := &UserSettings{
 		userConfigFinder: testConfigFinder("testdata/include"),
 	}
-	val := us.Get("test.test", "Compression")
-	if val != "yes" {
-		t.Errorf("expected to find Compression=yes in included file, got %q", val)
+	val := us.Get("kevinburke.ssh_config.test.example.com", "Port")
+	if val != "4567" {
+		t.Errorf("expected to find Port=4567 in included file, got %q", val)
+	}
+}
+
+func TestIncludeSystem(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping fs write in short mode")
+	}
+	testPath := filepath.Join("/", "etc", "ssh", "kevinburke-ssh-config-test-file")
+	err := ioutil.WriteFile(testPath, includeFile, 0644)
+	if err != nil {
+		t.Skipf("couldn't write SSH config file: %v", err.Error())
+	}
+	defer os.Remove(testPath)
+	us := &UserSettings{
+		systemConfigFinder: testConfigFinder("testdata/include"),
+	}
+	val := us.Get("kevinburke.ssh_config.test.example.com", "Port")
+	if val != "4567" {
+		t.Errorf("expected to find Port=4567 in included file, got %q", val)
+	}
+}
+
+var recursiveIncludeFile = []byte(`
+Host kevinburke.ssh_config.test.example.com
+	Include kevinburke-ssh-config-recursive-include
+`)
+
+func TestIncludeRecursive(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping fs write in short mode")
+	}
+	testPath := filepath.Join(homedir(), ".ssh", "kevinburke-ssh-config-recursive-include")
+	err := ioutil.WriteFile(testPath, recursiveIncludeFile, 0644)
+	if err != nil {
+		t.Skipf("couldn't write SSH config file: %v", err.Error())
+	}
+	defer os.Remove(testPath)
+	us := &UserSettings{
+		userConfigFinder: testConfigFinder("testdata/include-recursive"),
+	}
+	val, err := us.GetStrict("kevinburke.ssh_config.test.example.com", "Port")
+	if err != ErrDepthExceeded {
+		t.Errorf("Recursive include: expected ErrDepthExceeded, got %v", err)
+	}
+	if val != "" {
+		t.Errorf("non-empty string value %s", val)
 	}
 }
 

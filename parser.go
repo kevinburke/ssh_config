@@ -11,13 +11,24 @@ type sshParser struct {
 	tokensBuffer  []token
 	currentTable  []string
 	seenTableKeys []string
+	// /etc/ssh parser or local parser - used to find the default for relative
+	// filepaths in the Include directive
+	system bool
+	depth  uint8
 }
 
 type sshParserStateFn func() sshParserStateFn
 
 // Formats and panics an error message based on a token
-func (p *sshParser) raiseError(tok *token, msg string, args ...interface{}) {
+func (p *sshParser) raiseErrorf(tok *token, msg string, args ...interface{}) {
 	panic(tok.Position.String() + ": " + fmt.Sprintf(msg, args...))
+}
+
+func (p *sshParser) raiseError(tok *token, err error) {
+	if err == ErrDepthExceeded {
+		panic(err)
+	}
+	panic(tok.Position.String() + ": " + err.Error())
 }
 
 func (p *sshParser) run() {
@@ -68,7 +79,7 @@ func (p *sshParser) parseStart() sshParserStateFn {
 	case tokenEOF:
 		return nil
 	default:
-		p.raiseError(tok, fmt.Sprintf("unexpected token %q\n", tok))
+		p.raiseErrorf(tok, fmt.Sprintf("unexpected token %q\n", tok))
 	}
 	return nil
 }
@@ -98,7 +109,7 @@ func (p *sshParser) parseKV() sshParserStateFn {
 		for i := range strPatterns {
 			pat, err := NewPattern(strPatterns[i])
 			if err != nil {
-				p.raiseError(val, "Invalid host pattern: %v", err)
+				p.raiseErrorf(val, "Invalid host pattern: %v", err)
 				return nil
 			}
 			patterns[i] = pat
@@ -112,6 +123,19 @@ func (p *sshParser) parseKV() sshParserStateFn {
 		return p.parseStart
 	}
 	lastHost := p.config.Hosts[len(p.config.Hosts)-1]
+	if key.val == "Include" {
+		inc, err := NewInclude(strings.Split(val.val, " "), comment, p.system, p.depth+1)
+		if err == ErrDepthExceeded {
+			p.raiseError(val, err)
+			return nil
+		}
+		if err != nil {
+			p.raiseErrorf(val, "Error parsing Include directive: %v", err)
+			return nil
+		}
+		lastHost.Nodes = append(lastHost.Nodes, inc)
+		return p.parseStart
+	}
 	kv := &KV{
 		Key:          key.val,
 		Value:        val.val,
@@ -140,14 +164,14 @@ func (p *sshParser) parseComment() sshParserStateFn {
 func (p *sshParser) assume(typ tokenType) {
 	tok := p.peek()
 	if tok == nil {
-		p.raiseError(tok, "was expecting token %s, but token stream is empty", tok)
+		p.raiseErrorf(tok, "was expecting token %s, but token stream is empty", tok)
 	}
 	if tok.typ != typ {
-		p.raiseError(tok, "was expecting token %s, but got %s instead", typ, tok)
+		p.raiseErrorf(tok, "was expecting token %s, but got %s instead", typ, tok)
 	}
 }
 
-func parseSSH(flow chan token) *Config {
+func parseSSH(flow chan token, system bool, depth uint8) *Config {
 	result := newConfig()
 	result.position = Position{1, 1}
 	parser := &sshParser{
@@ -156,6 +180,8 @@ func parseSSH(flow chan token) *Config {
 		tokensBuffer:  make([]token, 0),
 		currentTable:  make([]string, 0),
 		seenTableKeys: make([]string, 0),
+		system:        system,
+		depth:         depth,
 	}
 	parser.run()
 	return result
