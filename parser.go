@@ -21,6 +21,7 @@ type sshParserStateFn func() sshParserStateFn
 
 // Formats and panics an error message based on a token
 func (p *sshParser) raiseErrorf(tok *token, msg string, args ...interface{}) {
+	// TODO this format is ugly
 	panic(tok.Position.String() + ": " + fmt.Sprintf(msg, args...))
 }
 
@@ -28,6 +29,7 @@ func (p *sshParser) raiseError(tok *token, err error) {
 	if err == ErrDepthExceeded {
 		panic(err)
 	}
+	// TODO this format is ugly
 	panic(tok.Position.String() + ": " + err.Error())
 }
 
@@ -98,7 +100,12 @@ func (p *sshParser) parseKV() sshParserStateFn {
 		tok = p.getToken()
 		comment = tok.val
 	}
-	if key.val == "Host" {
+	if strings.ToLower(key.val) == "match" {
+		// https://github.com/kevinburke/ssh_config/issues/6
+		p.raiseErrorf(val, "ssh_config: Match directive parsing is unsupported")
+		return nil
+	}
+	if strings.ToLower(key.val) == "host" {
 		strPatterns := strings.Split(val.val, " ")
 		for i := range strPatterns {
 			if strPatterns[i] == "" {
@@ -123,7 +130,7 @@ func (p *sshParser) parseKV() sshParserStateFn {
 		return p.parseStart
 	}
 	lastHost := p.config.Hosts[len(p.config.Hosts)-1]
-	if key.val == "Include" {
+	if strings.ToLower(key.val) == "include" {
 		inc, err := NewInclude(strings.Split(val.val, " "), comment, p.system, p.depth+1)
 		if err == ErrDepthExceeded {
 			p.raiseError(val, err)

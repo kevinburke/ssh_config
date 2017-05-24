@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -243,5 +244,19 @@ func TestMatches(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("host(%q).Matches(%q): got %v, want %v", tt.in, tt.alias, got, tt.want)
 		}
+	}
+}
+
+func TestMatchUnsupported(t *testing.T) {
+	us := &UserSettings{
+		userConfigFinder: testConfigFinder("testdata/match-directive"),
+	}
+
+	_, err := us.GetStrict("test.test", "Port")
+	if err == nil {
+		t.Fatal("expected Match directive to error, didn't")
+	}
+	if !strings.Contains(err.Error(), "ssh_config: Match directive parsing is unsupported") {
+		t.Errorf("wrong error: %v", err)
 	}
 }
