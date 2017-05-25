@@ -45,6 +45,15 @@ the `ssh_config` manpage. Unimplemented features should be present in the
 
 [issues]: https://github.com/kevinburke/ssh_config/issues
 
+## Errata
+
+This is the second [comment-preserving configuration parser][blog] I've written, after
+[an /etc/hosts parser][hostsfile]. Eventually, I will write one for every Linux
+file format.
+
+[blog]: https://kev.inburke.com/kevin/more-comment-preserving-configuration-parsers/
+[hostsfile]: https://github.com/kevinburke/hostsfile
+
 ## Donating
 
 Donations free up time to make improvements to the library, and respond to
