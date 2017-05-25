@@ -52,6 +52,51 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestGetWithDefault(t *testing.T) {
+	us := &UserSettings{
+		userConfigFinder: testConfigFinder("testdata/config1"),
+	}
+
+	val, err := us.GetStrict("wap", "PasswordAuthentication")
+	if err != nil {
+		t.Fatalf("expected nil err, got %v", err)
+	}
+	if val != "yes" {
+		t.Errorf("expected to get PasswordAuthentication yes, got %q", val)
+	}
+}
+
+func TestGetInvalidPort(t *testing.T) {
+	us := &UserSettings{
+		userConfigFinder: testConfigFinder("testdata/invalid-port"),
+	}
+
+	val, err := us.GetStrict("test.test", "Port")
+	if err == nil {
+		t.Fatalf("expected non-nil err, got nil")
+	}
+	if val != "" {
+		t.Errorf("expected to get '' for val, got %q", val)
+	}
+	if err.Error() != `ssh_config: strconv.ParseUint: parsing "notanumber": invalid syntax` {
+		t.Errorf("wrong error: got %v", err)
+	}
+}
+
+func TestGetNotFoundNoDefault(t *testing.T) {
+	us := &UserSettings{
+		userConfigFinder: testConfigFinder("testdata/config1"),
+	}
+
+	val, err := us.GetStrict("wap", "CanonicalDomains")
+	if err != nil {
+		t.Fatalf("expected nil err, got %v", err)
+	}
+	if val != "" {
+		t.Errorf("expected to get CanonicalDomains '', got %q", val)
+	}
+}
+
 func TestGetWildcard(t *testing.T) {
 	us := &UserSettings{
 		userConfigFinder: testConfigFinder("testdata/config3"),

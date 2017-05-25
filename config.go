@@ -82,7 +82,14 @@ func findVal(c *Config, alias, key string) (string, error) {
 	if c == nil {
 		return "", nil
 	}
-	return c.Get(alias, key)
+	val, err := c.Get(alias, key)
+	if err != nil || val == "" {
+		return "", err
+	}
+	if err := validate(key, val); err != nil {
+		return "", err
+	}
+	return val, nil
 }
 
 // Get finds the first value for key within a declaration that matches the
@@ -98,8 +105,9 @@ func Get(alias, key string) string {
 }
 
 // GetStrict finds the first value for key within a declaration that matches the
-// alias. For more information on how patterns are matched, see the manpage for
-// ssh_config.
+// alias. If key has a default value and no matching configuration is found, the
+// default will be returned. For more information on default values and the way
+// patterns are matched, see the manpage for ssh_config.
 //
 // error will be non-nil if and only if a user's configuration file or the
 // system configuration file could not be parsed, and u.IgnoreErrors is false.
@@ -124,8 +132,9 @@ func (u *UserSettings) Get(alias, key string) string {
 }
 
 // GetStrict finds the first value for key within a declaration that matches the
-// alias. For more information on how patterns are matched, see the manpage for
-// ssh_config.
+// alias. If key has a default value and no matching configuration is found, the
+// default will be returned. For more information on default values and the way
+// patterns are matched, see the manpage for ssh_config.
 //
 // error will be non-nil if and only if a user's configuration file or the
 // system configuration file could not be parsed, and u.IgnoreErrors is false.
@@ -162,7 +171,11 @@ func (u *UserSettings) GetStrict(alias, key string) (string, error) {
 	if err != nil || val != "" {
 		return val, err
 	}
-	return findVal(u.systemConfig, alias, key)
+	val2, err2 := findVal(u.systemConfig, alias, key)
+	if err2 != nil || val2 != "" {
+		return val2, err2
+	}
+	return Default(key), nil
 }
 
 func parseFile(filename string) (*Config, error) {
