@@ -4,13 +4,14 @@
 // you can manipulate a `ssh_config` file from a program, if your heart desires.
 //
 // The Get() and GetStrict() functions will attempt to read values from
-// `$HOME/.ssh/config`, falling back to `/etc/ssh/ssh_config`. The first
-// argument is the host name to match on, and the second argument is the key you
-// want to retrieve.
+// $HOME/.ssh/config, falling back to /etc/ssh/ssh_config. The first argument is
+// the host name to match on ("example.com"), and the second argument is the key
+// you want to retrieve ("Port"). The keywords are case insensitive.
 //
 // 		port := ssh_config.Get("myhost", "Port")
 //
-// Here's how you can manipulate an SSH config file, and then write it back.
+// You can also manipulate an SSH config file and then print it or write it back
+// to disk.
 //
 //	f, _ := os.Open(filepath.Join(os.Getenv("HOME"), ".ssh", "config"))
 //	cfg, _ := ssh_config.Decode(f)
@@ -23,6 +24,9 @@
 //
 //	// Write the cfg back to disk:
 //	fmt.Println(cfg.String())
+//
+// BUG: the Match directive is currently unsupported; parsing a config with
+// a Match directive will trigger an error.
 package ssh_config
 
 import (
@@ -41,7 +45,10 @@ import (
 
 type configFinder func() string
 
+// UserSettings checks ~/.ssh and /etc/ssh for configuration files. The config
+// files are parsed and cached the first time Get() or GetStrict() is called.
 type UserSettings struct {
+	IgnoreErrors       bool
 	systemConfig       *Config
 	systemConfigFinder configFinder
 	userConfig         *Config
@@ -49,7 +56,6 @@ type UserSettings struct {
 	username           string
 	loadConfigs        sync.Once
 	onceErr            error
-	IgnoreErrors       bool
 }
 
 func homedir() string {
@@ -66,8 +72,8 @@ func userConfigFinder() string {
 }
 
 // DefaultUserSettings is the default UserSettings and is used by Get and
-// GetStrict. It checks both $HOME/.ssh/config and /etc/ssh/ssh_config for
-// keys, and it will return parse errors (if any).
+// GetStrict. It checks both $HOME/.ssh/config and /etc/ssh/ssh_config for keys,
+// and it will return parse errors (if any) instead of swallowing them.
 var DefaultUserSettings = &UserSettings{
 	IgnoreErrors:       false,
 	systemConfigFinder: systemConfigFinder,
