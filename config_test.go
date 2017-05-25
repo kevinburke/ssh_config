@@ -3,6 +3,7 @@ package ssh_config
 import (
 	"bytes"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -250,6 +251,24 @@ func TestIncludeRecursive(t *testing.T) {
 	}
 	if val != "" {
 		t.Errorf("non-empty string value %s", val)
+	}
+}
+
+func TestIncludeString(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping fs write in short mode")
+	}
+	data, err := ioutil.ReadFile("testdata/include")
+	if err != nil {
+		log.Fatal(err)
+	}
+	c, err := Decode(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := c.String()
+	if s != string(data) {
+		t.Errorf("mismatch: got %q\nwant %q", s, string(data))
 	}
 }
 

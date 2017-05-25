@@ -131,7 +131,7 @@ func (p *sshParser) parseKV() sshParserStateFn {
 	}
 	lastHost := p.config.Hosts[len(p.config.Hosts)-1]
 	if strings.ToLower(key.val) == "include" {
-		inc, err := NewInclude(strings.Split(val.val, " "), comment, p.system, p.depth+1)
+		inc, err := NewInclude(strings.Split(val.val, " "), hasEquals, key.Position, comment, p.system, p.depth+1)
 		if err == ErrDepthExceeded {
 			p.raiseError(val, err)
 			return nil

@@ -297,20 +297,21 @@ func special(b byte) bool {
 	return bytes.IndexByte(specialBytes, b) >= 0
 }
 
-// NewPattern creates a new Pattern for matching hosts.
+// NewPattern creates a new Pattern for matching hosts. NewPattern("*") creates
+// a Pattern that matches all hosts.
+//
+// From the manpage, a pattern consists of zero or more non-whitespace
+// characters, `*' (a wildcard that matches zero or more characters), or `?' (a
+// wildcard that matches exactly one character). For example, to specify a set
+// of declarations for any host in the ".co.uk" set of domains, the following
+// pattern could be used:
+//
+//	Host *.co.uk
+//
+// The following pattern would match any host in the 192.168.0.[0-9] network range:
+//
+//	Host 192.168.0.?
 func NewPattern(s string) (*Pattern, error) {
-	// From the manpage:
-	// A pattern consists of zero or more non-whitespace characters,
-	// `*' (a wildcard that matches zero or more characters),
-	// or `?' (a wildcard that matches exactly one character).
-	// For example, to specify a set of declarations for any host in the
-	// ".co.uk" set of domains, the following pattern could be used:
-	//
-	//		Host *.co.uk
-	//
-	// The following pattern would match any host in the 192.168.0.[0-9] network range:
-	//
-	//		Host 192.168.0.?
 	if s == "" {
 		return nil, errors.New("ssh_config: empty pattern")
 	}
@@ -344,6 +345,7 @@ func NewPattern(s string) (*Pattern, error) {
 	return &Pattern{str: s, regex: r, not: negated}, nil
 }
 
+// Host describes a Host directive and the keywords that follow it.
 type Host struct {
 	// A list of host patterns that should match this host.
 	Patterns []*Pattern
@@ -492,6 +494,7 @@ type Include struct {
 	leadingSpace uint16
 	position     Position
 	depth        uint8
+	hasEquals    bool
 }
 
 const maxRecurseDepth = 5
@@ -519,15 +522,18 @@ func removeDups(arr []string) []string {
 // Configuration files are parsed greedily (e.g. as soon as this function runs).
 // Any error encountered while parsing nested configuration files will be
 // returned.
-func NewInclude(directives []string, comment string, system bool, depth uint8) (*Include, error) {
+func NewInclude(directives []string, hasEquals bool, pos Position, comment string, system bool, depth uint8) (*Include, error) {
 	if depth > maxRecurseDepth {
 		return nil, ErrDepthExceeded
 	}
 	inc := &Include{
-		Comment:    comment,
-		directives: directives,
-		files:      make(map[string]*Config),
-		depth:      depth,
+		Comment:      comment,
+		directives:   directives,
+		files:        make(map[string]*Config),
+		position:     pos,
+		leadingSpace: uint16(pos.Col) - 1,
+		depth:        depth,
+		hasEquals:    hasEquals,
 	}
 	// no need for inc.mu.Lock() since nothing else can access this inc
 	matches := make([]string, 0)
@@ -582,8 +588,18 @@ func (inc *Include) Get(alias, key string) string {
 	return ""
 }
 
-func (i *Include) String() string {
-	return "TODO"
+// String prints out a string representation of this Include directive. Note
+// included Config files are not printed as part of this representation.
+func (inc *Include) String() string {
+	equals := " "
+	if inc.hasEquals {
+		equals = " = "
+	}
+	line := fmt.Sprintf("%sInclude%s%s", strings.Repeat(" ", int(inc.leadingSpace)), equals, strings.Join(inc.directives, " "))
+	if inc.Comment != "" {
+		line += " #" + inc.Comment
+	}
+	return line
 }
 
 var matchAll *Pattern

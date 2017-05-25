@@ -11,3 +11,13 @@ func ExampleHost_Matches() {
 	// true
 	// false
 }
+
+func ExamplePattern() {
+	pat, _ := NewPattern("*")
+	host := &Host{Patterns: []*Pattern{pat}}
+	fmt.Println(host.Matches("test.stage.example.com"))
+	fmt.Println(host.Matches("othersubdomain.any.any"))
+	// Output:
+	// true
+	// true
+}
