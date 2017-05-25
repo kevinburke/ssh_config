@@ -43,6 +43,8 @@ import (
 	"sync"
 )
 
+const version = "0.1"
+
 type configFinder func() string
 
 // UserSettings checks ~/.ssh and /etc/ssh for configuration files. The config
