@@ -43,7 +43,7 @@ import (
 	"sync"
 )
 
-const version = "0.1"
+const version = "0.2"
 
 type configFinder func() string
 
