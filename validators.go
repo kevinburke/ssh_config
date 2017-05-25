@@ -6,6 +6,15 @@ import (
 	"strings"
 )
 
+// Default returns the default value for the given keyword, for example "22" if
+// the keyword is "Port". Default returns the empty string if the keyword has no
+// default, or if the keyword is unknown. Keyword matching is case-insensitive.
+//
+// Default values are provided by OpenSSH_7.4p1 on a Mac.
+func Default(keyword string) string {
+	return defaults[strings.ToLower(keyword)]
+}
+
 // Arguments where the value must be "yes" or "no" and *only* yes or no.
 var yesnos = map[string]bool{
 	strings.ToLower("BatchMode"):                        true,
@@ -150,11 +159,4 @@ var defaults = map[string]string{
 	strings.ToLower("VerifyHostKeyDNS"):   "no",
 	strings.ToLower("VisualHostKey"):      "no",
 	strings.ToLower("XAuthLocation"):      "/usr/X11R6/bin/xauth",
-}
-
-// Default returns the default value for the given keyword. Default returns the
-// empty string if the keyword has no default, or if the keyword is unknown.
-// Keyword matching is case-insensitive.
-func Default(keyword string) string {
-	return defaults[strings.ToLower(keyword)]
 }

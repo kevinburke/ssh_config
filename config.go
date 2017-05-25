@@ -222,11 +222,11 @@ func decode(r io.Reader, system bool, depth uint8) (c *Config, err error) {
 
 // Config represents an SSH config file.
 type Config struct {
-	position Position
 	// A list of hosts to match against. The file begins with an implicit
 	// "Host *" declaration matching all hosts.
-	Hosts []*Host
-	depth uint8
+	Hosts    []*Host
+	depth    uint8
+	position Position
 }
 
 // Get finds the first value in the configuration that matches the alias and
@@ -472,11 +472,21 @@ func (e *Empty) String() string {
 	return fmt.Sprintf("%s#%s", strings.Repeat(" ", int(e.leadingSpace)), e.Comment)
 }
 
+// Include holds the result of an Include directive, including the config files
+// that have been parsed as part of that directive. At most 5 levels of Include
+// statements will be parsed.
 type Include struct {
+	// Comment is the contents of any comment at the end of the Include
+	// statement.
 	Comment string
 	parsed  bool
 	// an include directive can include several different files, and wildcards
 	directives []string
+
+	mu sync.Mutex
+	// 1:1 mapping between matches and keys in files array; matches preserves
+	// ordering
+	matches []string
 	// actual filenames are listed here
 	files        map[string]*Config
 	leadingSpace uint16
@@ -486,9 +496,29 @@ type Include struct {
 
 const maxRecurseDepth = 5
 
+// ErrDepthExceeded is returned if too many Include directives are parsed.
+// Usually this indicates a recursive loop (an Include directive pointing to the
+// file it contains).
 var ErrDepthExceeded = errors.New("ssh_config: max recurse depth exceeded")
 
-// NewInclude creates a new Include with a list of files to include.
+func removeDups(arr []string) []string {
+	// Use map to record duplicates as we find them.
+	encountered := make(map[string]bool, len(arr))
+	result := make([]string, 0)
+
+	for v := range arr {
+		if encountered[arr[v]] == false {
+			encountered[arr[v]] = true
+			result = append(result, arr[v])
+		}
+	}
+	return result
+}
+
+// NewInclude creates a new Include with a list of file globs to include.
+// Configuration files are parsed greedily (e.g. as soon as this function runs).
+// Any error encountered while parsing nested configuration files will be
+// returned.
 func NewInclude(directives []string, comment string, system bool, depth uint8) (*Include, error) {
 	if depth > maxRecurseDepth {
 		return nil, ErrDepthExceeded
@@ -499,6 +529,8 @@ func NewInclude(directives []string, comment string, system bool, depth uint8) (
 		files:      make(map[string]*Config),
 		depth:      depth,
 	}
+	// no need for inc.mu.Lock() since nothing else can access this inc
+	matches := make([]string, 0)
 	for i := range directives {
 		var path string
 		if filepath.IsAbs(directives[i]) {
@@ -508,42 +540,40 @@ func NewInclude(directives []string, comment string, system bool, depth uint8) (
 		} else {
 			path = filepath.Join(homedir(), ".ssh", directives[i])
 		}
-		matches, err := filepath.Glob(path)
+		theseMatches, err := filepath.Glob(path)
 		if err != nil {
 			return nil, err
 		}
-		for j := range matches {
-			if _, ok := inc.files[matches[j]]; ok {
-				// config already parsed
-				continue
-			}
-			config, err := parseWithDepth(matches[j], depth)
-			if err != nil {
-				return nil, err
-			}
-			inc.files[matches[j]] = config
-		}
+		matches = append(matches, theseMatches...)
 	}
-	// check depth limit
-	// for each directive:
-	// for each file in the list:
-	// - increment the depth array
-	// - parse it, return any errors
-	// - add to files map
+	matches = removeDups(matches)
+	inc.matches = matches
+	for i := range matches {
+		config, err := parseWithDepth(matches[i], depth)
+		if err != nil {
+			return nil, err
+		}
+		inc.files[matches[i]] = config
+	}
 	return inc, nil
 }
 
+// Pos returns the position of the Include directive in the larger file.
 func (i *Include) Pos() Position {
 	return i.position
 }
 
-func (i *Include) Add() error {
-	return nil
-}
-
-// Get finds the first value in the Include statement
-func (i *Include) Get(alias, key string) string {
-	for _, cfg := range i.files {
+// Get finds the first value in the Include statement matching the alias and the
+// given key.
+func (inc *Include) Get(alias, key string) string {
+	inc.mu.Lock()
+	defer inc.mu.Unlock()
+	// TODO: we search files in any order which is not correct
+	for i := range inc.matches {
+		cfg := inc.files[inc.matches[i]]
+		if cfg == nil {
+			panic("nil cfg")
+		}
 		val, err := cfg.Get(alias, key)
 		if err == nil && val != "" {
 			return val
