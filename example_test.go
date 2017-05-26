@@ -38,3 +38,11 @@ Host *.example.com
 	fmt.Println(val)
 	// Output: yes
 }
+
+func ExampleDefault() {
+	fmt.Println(ssh_config.Default("Port"))
+	fmt.Println(ssh_config.Default("UnknownVar"))
+	// Output:
+	// 22
+	//
+}
