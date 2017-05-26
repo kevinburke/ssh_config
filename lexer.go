@@ -13,7 +13,6 @@ type sshLexer struct {
 	input         *buffruneio.Reader // Textual source
 	buffer        []rune             // Runes composing the current token
 	tokens        chan token
-	depth         int
 	line          uint32
 	col           uint16
 	endbufferLine uint32

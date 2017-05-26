@@ -293,7 +293,7 @@ var matchTests = []struct {
 
 func TestMatches(t *testing.T) {
 	for _, tt := range matchTests {
-		patterns := make([]*Pattern, len(tt.in), len(tt.in))
+		patterns := make([]*Pattern, len(tt.in))
 		for i := range tt.in {
 			pat, err := NewPattern(tt.in[i])
 			if err != nil {

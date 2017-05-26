@@ -55,7 +55,6 @@ type UserSettings struct {
 	systemConfigFinder configFinder
 	userConfig         *Config
 	userConfigFinder   configFinder
-	username           string
 	loadConfigs        sync.Once
 	onceErr            error
 }

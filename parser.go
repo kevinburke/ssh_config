@@ -167,17 +167,6 @@ func (p *sshParser) parseComment() sshParserStateFn {
 	return p.parseStart
 }
 
-// assume peeks at the next token and ensures it's the right type
-func (p *sshParser) assume(typ tokenType) {
-	tok := p.peek()
-	if tok == nil {
-		p.raiseErrorf(tok, "was expecting token %s, but token stream is empty", tok)
-	}
-	if tok.typ != typ {
-		p.raiseErrorf(tok, "was expecting token %s, but got %s instead", typ, tok)
-	}
-}
-
 func parseSSH(flow chan token, system bool, depth uint8) *Config {
 	result := newConfig()
 	result.position = Position{1, 1}

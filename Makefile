@@ -1,12 +1,14 @@
 BUMP_VERSION := $(shell command -v bump_version)
-STATICCHECK := $(shell command -v staticcheck)
+MEGACHECK := $(shell command -v megaccheck)
+
+IGNORES := 'github.com/kevinburke/ssh_config/config.go:U1000 github.com/kevinburke/ssh_config/config.go:S1002 github.com/kevinburke/ssh_config/token.go:U1000'
 
 lint:
 	go vet ./...
-ifndef STATICCHECK
-	go get -u honnef.co/go/tools/cmd/staticcheck
+ifndef MEGACHECK
+	go get -u honnef.co/go/tools/cmd/megacheck
 endif
-	staticcheck ./...
+	megacheck --ignore=$(IGNORES) ./...
 
 test: lint
 	@# the timeout helps guard against infinite recursion
