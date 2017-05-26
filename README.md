@@ -21,12 +21,12 @@ You can also load a config file and read values from it.
 
 ```go
 var config = `
-Host test.test
+Host *.test
   Compression yes
 `
 
 cfg, err := ssh_config.Decode(strings.NewReader(config))
-fmt.Println(cfg.Get("Port"))
+fmt.Println(cfg.Get("example.test", "Port"))
 ```
 
 Some SSH arguments have default values - for example, the default value for
