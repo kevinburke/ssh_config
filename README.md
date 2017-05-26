@@ -17,11 +17,27 @@ want to retrieve.
 port := ssh_config.Get("myhost", "Port")
 ```
 
-Some SSH arguments have default values - for example, the default value for
-`KeyboardAuthentication` is `"yes"`. If we can't find a value for the given
-Host/keyword pair, and a default exists for the keyword, we return it.
+You can also load a config file and read values from it.
 
-Here's how you can manipulate an SSH config file, and then write it back.
+```go
+var config = `
+Host test.test
+  Compression yes
+`
+
+cfg, err := ssh_config.Decode(strings.NewReader(config))
+fmt.Println(cfg.Get("Port"))
+```
+
+Some SSH arguments have default values - for example, the default value for
+`KeyboardAuthentication` is `"yes"`. If you call Get(), and no value for the
+given Host/keyword pair exists in the config, we'll return a default for the
+keyword if one exists.
+
+### Manipulating SSH config files
+
+Here's how you can manipulate an SSH config file, and then write it back to
+disk.
 
 ```go
 f, _ := os.Open(filepath.Join(os.Getenv("HOME"), ".ssh", "config"))
@@ -29,11 +45,13 @@ cfg, _ := ssh_config.Decode(f)
 for _, host := range cfg.Hosts {
     fmt.Println("patterns:", host.Patterns)
     for _, node := range host.Nodes {
+        // Manipulate the nodes as you see fit, or use a type switch to
+        // distinguish between Empty, KV, and Include nodes.
         fmt.Println(node.String())
     }
 }
 
-// Write the cfg back to disk:
+// Print the config to stdout:
 fmt.Println(cfg.String())
 ```
 
@@ -41,7 +59,9 @@ fmt.Println(cfg.String())
 
 Wherever possible we try to implement the specification as documented in
 the `ssh_config` manpage. Unimplemented features should be present in the
-[issues][issues] list. Notably, the `Match` directive is currently unsupported.
+[issues][issues] list.
+
+Notably, the `Match` directive is currently unsupported.
 
 [issues]: https://github.com/kevinburke/ssh_config/issues
 

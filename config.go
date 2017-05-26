@@ -242,8 +242,6 @@ type Config struct {
 // Config contains an invalid conditional Include value.
 //
 // The match for key is case insensitive.
-//
-// Get is a wrapper around DefaultUserSettings.Get.
 func (c *Config) Get(alias, key string) (string, error) {
 	lowerKey := strings.ToLower(key)
 	for _, host := range c.Hosts {
