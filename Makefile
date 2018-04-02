@@ -13,7 +13,7 @@ lint: $(MEGACHECK)
 
 test: lint
 	@# the timeout helps guard against infinite recursion
-	go test -timeout=50ms ./...
+	go test -timeout=250ms -race ./...
 
 $(BUMP_VERSION):
 	go get -u github.com/Shyp/bump_version
