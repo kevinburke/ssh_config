@@ -646,7 +646,7 @@ func NewEmptyConfig() *Config {
 	}
 }
 
-// NewHost creates a new match all host
+// NewHost creates a new host using the pattern in the parameter
 func NewHost(pattern *Pattern) *Host {
 	return &Host{
 		Patterns: []*Pattern{pattern},
