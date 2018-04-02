@@ -647,10 +647,9 @@ func NewEmptyConfig() *Config {
 }
 
 // NewHost creates a new match all host
-func NewHost() *Host {
+func NewHost(pattern *Pattern) *Host {
 	return &Host{
-		implicit: true,
-		Patterns: []*Pattern{matchAll},
+		Patterns: []*Pattern{pattern},
 		Nodes:    make([]Node, 0),
 	}
 }
@@ -699,8 +698,7 @@ func (c *Config) AddNewHost(pattern string) (*Host, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := NewHost()
-	h.Patterns = []*Pattern{p}
+	h := NewHost(p)
 	c.Hosts = append(c.Hosts, h)
 	return h, nil
 }
