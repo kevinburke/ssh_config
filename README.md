@@ -1,3 +1,7 @@
+[![Build Status](https://travis-ci.org/kevinburke/ssh_config.svg?branch=master)](https://travis-ci.org/kevinburke/ssh_config)
+[![GoDoc](https://godoc.org/github.com/kevinburke/ssh_config?status.svg)](https://godoc.org/github.com/kevinburke/ssh_config)
+[![Go Report Card](https://goreportcard.com/badge/github.com/kevinburke/ssh_config)](https://goreportcard.com/report/github.com/kevinburke/ssh_config)
+
 # ssh_config
 
 This is a Go parser for `ssh_config` files. Importantly, this parser attempts
