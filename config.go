@@ -578,8 +578,8 @@ func NewInclude(directives []string, hasEquals bool, pos Position, comment strin
 }
 
 // Pos returns the position of the Include directive in the larger file.
-func (i *Include) Pos() Position {
-	return i.position
+func (inc *Include) Pos() Position {
+	return inc.position
 }
 
 // Get finds the first value in the Include statement matching the alias and the
@@ -635,5 +635,149 @@ func newConfig() *Config {
 			},
 		},
 		depth: 0,
+	}
+}
+
+// NewEmptyConfig creates a new empty config
+func NewEmptyConfig() *Config {
+	return &Config{
+		Hosts: []*Host{},
+		depth: 0,
+	}
+}
+
+// NewHost creates a new host using the pattern in the parameter
+func NewHost(pattern *Pattern) *Host {
+	return &Host{
+		Patterns: []*Pattern{pattern},
+		Nodes:    make([]Node, 0),
+	}
+}
+
+// GetImplicitHost finds the default implicit host in the current config.
+// Returns nil if not found.
+func (c *Config) GetImplicitHost() *Host {
+	for _, h := range c.Hosts {
+		if h.implicit {
+			return h
+		}
+	}
+	return nil
+}
+
+// GetHostForPattern finds the non-implicit host in the current config that matches the pattern.
+// Returns nil if not found.
+func (c *Config) GetHostForPattern(pattern string) *Host {
+	for _, h := range c.Hosts {
+		if !h.implicit {
+			for _, p := range h.Patterns {
+				if p.String() == pattern {
+					return h
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// AddHost adds a host to the current config, checking for nil and patterns.
+func (c *Config) AddHost(h *Host) error {
+	if h == nil {
+		return errors.New("Host is nil")
+	}
+	if len(h.Patterns) == 0 {
+		return errors.New("The list of patterns is empty")
+	}
+	c.Hosts = append(c.Hosts, h)
+	return nil
+}
+
+// AddNewHost adds a new empty host to the configuration using the pattern.
+func (c *Config) AddNewHost(pattern string) (*Host, error) {
+	p, err := NewPattern(pattern)
+	if err != nil {
+		return nil, err
+	}
+	h := NewHost(p)
+	c.Hosts = append(c.Hosts, h)
+	return h, nil
+}
+
+// Get Gets the value for a configuration key in the host
+func (h *Host) Get(key string) string {
+	lowerKey := strings.ToLower(key)
+	for _, node := range h.Nodes {
+		if t, ok := node.(*KV); ok {
+			// "keys are case insensitive" per the spec
+			lkey := strings.ToLower(t.Key)
+			if lkey == lowerKey {
+				return t.Value
+			}
+		}
+	}
+	return ""
+}
+
+// Set Sets the value for a configuration key in the host
+func (h *Host) Set(key string, value string) *KV {
+	lowerKey := strings.ToLower(key)
+	var kv *KV
+	for _, node := range h.Nodes {
+		if t, ok := node.(*KV); ok {
+			// "keys are case insensitive" per the spec
+			lkey := strings.ToLower(t.Key)
+			if lkey == lowerKey {
+				t.Value = value
+				kv = t
+				break
+			}
+		}
+	}
+	if kv == nil {
+		kv = &KV{
+			Key:   key,
+			Value: value,
+		}
+		h.Nodes = append(h.Nodes, kv)
+	}
+	return kv
+}
+
+// Delete Deletes the value, if set, for a configuration key in the host
+func (h *Host) Delete(key string) {
+	lowerKey := strings.ToLower(key)
+	nodes := []Node{}
+	for _, node := range h.Nodes {
+		if t, ok := node.(*KV); ok {
+			// "keys are case insensitive" per the spec
+			lkey := strings.ToLower(t.Key)
+			if lkey != lowerKey {
+				nodes = append(nodes, node)
+			}
+		}
+	}
+	h.Nodes = nodes
+}
+
+// SetLeadingSpace set leading space value
+func (k *KV) SetLeadingSpace(leadingSpace uint16) {
+	k.leadingSpace = leadingSpace
+}
+
+// SetLeadingSpace set leading space value
+func (h *Host) SetLeadingSpace(leadingSpace uint16) {
+	for _, node := range h.Nodes {
+		if t, ok := node.(*KV); ok {
+			t.SetLeadingSpace(leadingSpace)
+		}
+	}
+}
+
+// SetLeadingSpace set leading space value
+func (c *Config) SetLeadingSpace(leadingSpace uint16) {
+	for _, h := range c.Hosts {
+		if !h.implicit {
+			h.SetLeadingSpace(leadingSpace)
+		}
 	}
 }
