@@ -15,6 +15,26 @@ func Default(keyword string) string {
 	return defaults[strings.ToLower(keyword)]
 }
 
+// DefaultAll returns the default value for the given keyword, but as a slice. If
+// there is no default for the keyword, nil is returned.
+//
+// Some multi-valued settings have different defaults based on other settings, so
+// you must provide the host alias and a config to retrieve a setting from
+func DefaultAll(keyword string, alias string, cfg config) []string {
+	if strings.ToLower(keyword) == "identityfile" && cfg.getinternal(alias, "Protocol") == "2" {
+		def := make([]string, len(defaultProtocol2Identities))
+		copy(def, defaultProtocol2Identities)
+		return def
+	}
+
+	def := Default(keyword)
+	if def != "" {
+		return []string{def}
+	}
+
+	return nil
+}
+
 // Arguments where the value must be "yes" or "no" and *only* yes or no.
 var yesnos = map[string]bool{
 	strings.ToLower("BatchMode"):                        true,
