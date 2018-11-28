@@ -226,25 +226,7 @@ func (u *UserSettings) GetAllStrict(alias, key string) ([]string, error) {
 	if err2 != nil || val2 != nil {
 		return val2, err2
 	}
-
-	if strings.ToLower(key) == "identityfile" {
-		switch u.Get(alias, "Protocol") {
-		case "1":
-			return []string{defaults["identityfile"]}, nil
-		case "2":
-			def := make([]string, len(defaultProtocol2Identities))
-			copy(def, defaultProtocol2Identities)
-			return def, nil
-		}
-	}
-
-	// return any single defaults if they exist
-	def := Default(key)
-	if def != "" {
-		return []string{def}, nil
-	}
-
-	return nil, nil
+	return DefaultAll(key, alias, u.Get), nil
 }
 
 func (u *UserSettings) doLoadConfigs() {
