@@ -169,6 +169,12 @@ func (p *sshParser) parseComment() sshParserStateFn {
 }
 
 func parseSSH(flow chan token, system bool, depth uint8) *Config {
+	// Ensure we consume tokens to completion even if parser exits early
+	defer func() {
+		for range flow {
+		}
+	}()
+
 	result := newConfig()
 	result.position = Position{1, 1}
 	parser := &sshParser{
