@@ -34,6 +34,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	osuser "os/user"
 	"path/filepath"
@@ -195,26 +196,29 @@ func parseFile(filename string) (*Config, error) {
 }
 
 func parseWithDepth(filename string, depth uint8) (*Config, error) {
-	f, err := os.Open(filename)
+	b, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-	return decode(f, isSystem(filename), depth)
+	return decodeBytes(b, isSystem(filename), depth)
 }
 
 func isSystem(filename string) bool {
-	// TODO i'm not sure this is the best way to detect a system repo
+	// TODO: not sure this is the best way to detect a system repo
 	return strings.HasPrefix(filepath.Clean(filename), "/etc/ssh")
 }
 
 // Decode reads r into a Config, or returns an error if r could not be parsed as
 // an SSH config file.
 func Decode(r io.Reader) (*Config, error) {
-	return decode(r, false, 0)
+	b, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	return decodeBytes(b, false, 0)
 }
 
-func decode(r io.Reader, system bool, depth uint8) (c *Config, err error) {
+func decodeBytes(b []byte, system bool, depth uint8) (c *Config, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if _, ok := r.(runtime.Error); ok {
@@ -228,7 +232,7 @@ func decode(r io.Reader, system bool, depth uint8) (c *Config, err error) {
 		}
 	}()
 
-	c = parseSSH(lexSSH(r), system, depth)
+	c = parseSSH(lexSSH(b), system, depth)
 	return c, err
 }
 
