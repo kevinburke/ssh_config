@@ -149,7 +149,7 @@ func (p *sshParser) parseKV() sshParserStateFn {
 		Value:        val.val,
 		Comment:      comment,
 		hasEquals:    hasEquals,
-		leadingSpace: uint16(key.Position.Col) - 1,
+		leadingSpace: key.Position.Col - 1,
 		position:     key.Position,
 	}
 	lastHost.Nodes = append(lastHost.Nodes, kv)

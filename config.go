@@ -45,6 +45,8 @@ import (
 
 const version = "0.5"
 
+var _ = version
+
 type configFinder func() string
 
 // UserSettings checks ~/.ssh and /etc/ssh for configuration files. The config
@@ -367,7 +369,7 @@ type Host struct {
 	// EOLComment is the comment (if any) terminating the Host line.
 	EOLComment   string
 	hasEquals    bool
-	leadingSpace uint16 // TODO: handle spaces vs tabs here.
+	leadingSpace int // TODO: handle spaces vs tabs here.
 	// The file starts with an implicit "Host *" declaration.
 	implicit bool
 }
@@ -438,7 +440,7 @@ type KV struct {
 	Value        string
 	Comment      string
 	hasEquals    bool
-	leadingSpace uint16 // Space before the key. TODO handle spaces vs tabs.
+	leadingSpace int // Space before the key. TODO handle spaces vs tabs.
 	position     Position
 }
 
@@ -467,7 +469,7 @@ func (k *KV) String() string {
 // Empty is a line in the config file that contains only whitespace or comments.
 type Empty struct {
 	Comment      string
-	leadingSpace uint16 // TODO handle spaces vs tabs.
+	leadingSpace int // TODO handle spaces vs tabs.
 	position     Position
 }
 
@@ -494,7 +496,6 @@ type Include struct {
 	// Comment is the contents of any comment at the end of the Include
 	// statement.
 	Comment string
-	parsed  bool
 	// an include directive can include several different files, and wildcards
 	directives []string
 
@@ -504,7 +505,7 @@ type Include struct {
 	matches []string
 	// actual filenames are listed here
 	files        map[string]*Config
-	leadingSpace uint16
+	leadingSpace int
 	position     Position
 	depth        uint8
 	hasEquals    bool
@@ -544,7 +545,7 @@ func NewInclude(directives []string, hasEquals bool, pos Position, comment strin
 		directives:   directives,
 		files:        make(map[string]*Config),
 		position:     pos,
-		leadingSpace: uint16(pos.Col) - 1,
+		leadingSpace: pos.Col - 1,
 		depth:        depth,
 		hasEquals:    hasEquals,
 	}
