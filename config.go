@@ -158,6 +158,7 @@ func (u *UserSettings) GetStrict(alias, key string) (string, error) {
 		}
 		var err error
 		u.userConfig, err = parseFile(filename)
+		//lint:ignore S1002 I prefer it this way
 		if err != nil && os.IsNotExist(err) == false {
 			u.onceErr = err
 			return
@@ -168,11 +169,13 @@ func (u *UserSettings) GetStrict(alias, key string) (string, error) {
 			filename = u.systemConfigFinder()
 		}
 		u.systemConfig, err = parseFile(filename)
+		//lint:ignore S1002 I prefer it this way
 		if err != nil && os.IsNotExist(err) == false {
 			u.onceErr = err
 			return
 		}
 	})
+	//lint:ignore S1002 I prefer it this way
 	if u.onceErr != nil && u.IgnoreErrors == false {
 		return "", u.onceErr
 	}
@@ -381,7 +384,7 @@ func (h *Host) Matches(alias string) bool {
 	found := false
 	for i := range h.Patterns {
 		if h.Patterns[i].regex.MatchString(alias) {
-			if h.Patterns[i].not == true {
+			if h.Patterns[i].not {
 				// Negated match. "A pattern entry may be negated by prefixing
 				// it with an exclamation mark (`!'). If a negated entry is
 				// matched, then the Host entry is ignored, regardless of
@@ -400,6 +403,7 @@ func (h *Host) Matches(alias string) bool {
 // present in the whitespace in the printed file.
 func (h *Host) String() string {
 	var buf bytes.Buffer
+	//lint:ignore S1002 I prefer to write it this way
 	if h.implicit == false {
 		buf.WriteString(strings.Repeat(" ", int(h.leadingSpace)))
 		buf.WriteString("Host")
@@ -524,6 +528,7 @@ func removeDups(arr []string) []string {
 	result := make([]string, 0)
 
 	for v := range arr {
+		//lint:ignore S1002 I prefer it this way
 		if encountered[arr[v]] == false {
 			encountered[arr[v]] = true
 			result = append(result, arr[v])
