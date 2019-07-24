@@ -44,7 +44,7 @@ import (
 	"sync"
 )
 
-const version = "0.5"
+const version = "1.0"
 
 var _ = version
 
