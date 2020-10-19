@@ -1,3 +1,6 @@
+arch: 
+   - amd64
+   - ppc64le
 go_import_path: github.com/kevinburke/ssh_config
 
 language: go
