@@ -9,6 +9,16 @@ go:
   - 1.11.x
   - 1.12.x
   - master
+jobs:
+ exclude:
+  - arch: amd64
+    go: 1.11.x
+  - arch: amd64
+    go: 1.12.x
+  - arch: ppc64le
+    go: 1.11.x
+  - arch: ppc64le
+    go: 1.12.x
 
 before_script:
     - go get -u ./...
