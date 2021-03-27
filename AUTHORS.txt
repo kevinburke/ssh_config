@@ -1,3 +1,4 @@
+Dustin Spicuzza <dustin@virtualroadside.com>
 Eugene Terentev <eugene@terentev.net>
 Kevin Burke <kevin@burke.dev>
 Mark Nevill <nev@improbable.io>
