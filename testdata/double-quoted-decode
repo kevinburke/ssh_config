@@ -1,0 +1,5 @@
+Host "host with spaces"
+    HostName spaces.example.com
+
+Host h1 "multiple hosts 1" h2 "multiple hosts 2" h3
+    HostName multiple.example.com

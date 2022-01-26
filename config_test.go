@@ -22,6 +22,7 @@ var files = []string{
 	"testdata/config1",
 	"testdata/config2",
 	"testdata/eol-comments",
+	"testdata/double-quoted-decode",
 }
 
 func TestDecode(t *testing.T) {
@@ -256,6 +257,47 @@ func TestGetEqsign(t *testing.T) {
 	val = us.Get("test.test", "Port2")
 	if val != "5678" {
 		t.Errorf("expected to find Port2 5678, got %q", val)
+	}
+}
+
+func TestGetDoubleQuotes(t *testing.T) {
+	us := &UserSettings{
+		userConfigFinder: testConfigFinder("testdata/double-quotes"),
+	}
+
+	val := us.Get("*.pattern-in-quotes.example.com", "HostName")
+	if val != "pattern-in-quotes.example.com" {
+		t.Errorf("expected to find HostName pattern-in-quotes.example.com, got %q", val)
+	}
+
+	val = us.Get("host with spaces", "HostName")
+	if val != "spaces.example.com" {
+		t.Errorf("expected to find HostName spaces.example.com, got %q", val)
+	}
+
+	val = us.Get("multiple hosts 1", "HostName")
+	if val != "multiple.example.com" {
+		t.Errorf("expected to find HostName multiple.example.com, got %q", val)
+	}
+
+	val = us.Get("multiple hosts 2", "HostName")
+	if val != "multiple.example.com" {
+		t.Errorf("expected to find HostName multiple.example.com, got %q", val)
+	}
+
+	val = us.Get("edge-case-1.example.com", "HostName")
+	if val != "edge-cases.example.com" {
+		t.Errorf("expected to find HostName edge-cases.example.com, got %q", val)
+	}
+
+	val = us.Get("edge-case-2.example.com", "HostName")
+	if val != "edge-cases.example.com" {
+		t.Errorf("expected to find HostName edge-cases.example.com, got %q", val)
+	}
+
+	val = us.Get("edge-case-3.example.com", "HostName")
+	if val != "edge-cases.example.com" {
+		t.Errorf("expected to find HostName edge-cases.example.com, got %q", val)
 	}
 }
 
