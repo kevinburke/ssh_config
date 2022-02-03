@@ -300,6 +300,12 @@ func Decode(r io.Reader) (*Config, error) {
 	return decodeBytes(b, false, 0)
 }
 
+// DecodeBytes reads b into a Config, or returns an error if r could not be
+// parsed as an SSH config file.
+func DecodeBytes(b []byte) (*Config, error) {
+	return decodeBytes(b, false, 0)
+}
+
 func decodeBytes(b []byte, system bool, depth uint8) (c *Config, err error) {
 	defer func() {
 		if r := recover(); r != nil {

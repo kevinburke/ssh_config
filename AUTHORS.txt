@@ -1,3 +1,4 @@
+Carlos A Becker <caarlos0@gmail.com>
 Dustin Spicuzza <dustin@virtualroadside.com>
 Eugene Terentev <eugene@terentev.net>
 Kevin Burke <kevin@burke.dev>
