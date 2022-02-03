@@ -283,7 +283,7 @@ func parseWithDepth(filename string, depth uint8) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	return decodeBytes(b, isSystem(filename), depth)
+	return doDecodeBytes(b, isSystem(filename), depth)
 }
 
 func isSystem(filename string) bool {
@@ -298,10 +298,16 @@ func Decode(r io.Reader) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	return decodeBytes(b, false, 0)
+	return doDecodeBytes(b, false, 0)
 }
 
-func decodeBytes(b []byte, system bool, depth uint8) (c *Config, err error) {
+// DecodeBytes reads b into a Config, or returns an error if r could not be
+// parsed as an SSH config file.
+func DecodeBytes(b []byte) (*Config, error) {
+	return doDecodeBytes(b, false, 0)
+}
+
+func doDecodeBytes(b []byte, system bool, depth uint8) (c *Config, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if _, ok := r.(runtime.Error); ok {
