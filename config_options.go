@@ -131,13 +131,20 @@ var configOptions = []string{
 // 	return opts, nil
 // }
 
+var configOptionsMap = map[string]string{}
+
+func init() {
+	for _, opt := range configOptions {
+		configOptionsMap[strings.ToLower(opt)] = opt
+	}
+}
+
 // GetCanonicalCase checks for the given key in the known ssh config keys
 // and returns with proper casing if found, otherwise returns what was given.
 func GetCanonicalCase(key string) string {
-	for _, value := range configOptions {
-		if strings.EqualFold(key, value) {
-			return value
-		}
+	if v, ok := configOptionsMap[strings.ToLower(key)]; ok {
+		return v
 	}
+
 	return key
 }
