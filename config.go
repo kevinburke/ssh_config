@@ -576,6 +576,12 @@ func (k *KV) Pos() Position {
 	return k.position
 }
 
+// SetLeadingSpace allows to set the leading space count
+// before printing the key/values params of a host
+func (k *KV) SetLeadingSpace(leadingSpace int) {
+	k.leadingSpace = leadingSpace
+}
+
 // String prints k as it was parsed in the config file. There may be slight
 // changes to the whitespace between values.
 func (k *KV) String() string {
