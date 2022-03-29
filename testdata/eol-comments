@@ -1,0 +1,5 @@
+Host example
+    HostName example.com    # aligned eol comment 1
+    ForwardX11Timeout 52w   # aligned eol comment 2
+    AddressFamily inet      # aligned eol comment 3    
+    Port 4242 #compact comment

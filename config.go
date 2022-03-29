@@ -588,7 +588,7 @@ func (k *KV) String() string {
 	}
 	line := fmt.Sprintf("%s%s%s%s", strings.Repeat(" ", int(k.leadingSpace)), k.Key, equals, k.Value)
 	if k.Comment != "" {
-		line += " #" + k.Comment
+		line += "#" + k.Comment
 	}
 	return line
 }
