@@ -10,6 +10,7 @@ import (
 )
 
 func loadFile(t *testing.T, filename string) []byte {
+	t.Helper()
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		t.Fatal(err)
@@ -17,7 +18,11 @@ func loadFile(t *testing.T, filename string) []byte {
 	return data
 }
 
-var files = []string{"testdata/config1", "testdata/config2"}
+var files = []string{
+	"testdata/config1",
+	"testdata/config2",
+	"testdata/eol-comments",
+}
 
 func TestDecode(t *testing.T) {
 	for _, filename := range files {
@@ -28,7 +33,7 @@ func TestDecode(t *testing.T) {
 		}
 		out := cfg.String()
 		if out != string(data) {
-			t.Errorf("out != data: out: %q\ndata: %q", out, string(data))
+			t.Errorf("%s out != data: got:\n%s\nwant:\n%s\n", filename, out, string(data))
 		}
 	}
 }
