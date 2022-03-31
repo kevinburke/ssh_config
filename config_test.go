@@ -2,7 +2,6 @@ package ssh_config
 
 import (
 	"bytes"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,7 +10,7 @@ import (
 )
 
 func loadFile(t *testing.T, filename string) []byte {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,7 +266,7 @@ func TestInclude(t *testing.T) {
 		t.Skip("skipping fs write in short mode")
 	}
 	testPath := filepath.Join(homedir(), ".ssh", "kevinburke-ssh-config-test-file")
-	err := ioutil.WriteFile(testPath, includeFile, 0644)
+	err := os.WriteFile(testPath, includeFile, 0644)
 	if err != nil {
 		t.Skipf("couldn't write SSH config file: %v", err.Error())
 	}
@@ -286,7 +285,7 @@ func TestIncludeSystem(t *testing.T) {
 		t.Skip("skipping fs write in short mode")
 	}
 	testPath := filepath.Join("/", "etc", "ssh", "kevinburke-ssh-config-test-file")
-	err := ioutil.WriteFile(testPath, includeFile, 0644)
+	err := os.WriteFile(testPath, includeFile, 0644)
 	if err != nil {
 		t.Skipf("couldn't write SSH config file: %v", err.Error())
 	}
@@ -310,7 +309,7 @@ func TestIncludeRecursive(t *testing.T) {
 		t.Skip("skipping fs write in short mode")
 	}
 	testPath := filepath.Join(homedir(), ".ssh", "kevinburke-ssh-config-recursive-include")
-	err := ioutil.WriteFile(testPath, recursiveIncludeFile, 0644)
+	err := os.WriteFile(testPath, recursiveIncludeFile, 0644)
 	if err != nil {
 		t.Skipf("couldn't write SSH config file: %v", err.Error())
 	}
@@ -331,7 +330,7 @@ func TestIncludeString(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping fs write in short mode")
 	}
-	data, err := ioutil.ReadFile("testdata/include")
+	data, err := os.ReadFile("testdata/include")
 	if err != nil {
 		log.Fatal(err)
 	}
