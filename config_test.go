@@ -455,3 +455,38 @@ func TestNoTrailingNewline(t *testing.T) {
 		t.Errorf("wrong port: got %q want 4242", port)
 	}
 }
+
+func TestPercent(t *testing.T) {
+	b := bytes.NewBufferString(`Host wap
+  HostName wap.example.org
+  Port 22
+  User root
+  KexAlgorithms diffie-hellman-group1-sha1
+`)
+	cfg, err := Decode(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	host := cfg.Hosts[1]
+	t.Logf("cfg is %v, %d hosts, Hosts %v, host %v", cfg, len(cfg.Hosts), cfg.Hosts, host)
+	home := os.Getenv("HOME")
+	user := os.Getenv("USER")
+
+	for _, tt := range []struct {
+		in  string
+		out string
+	}{
+		{"hi", "hi"},
+		{"%dhi", home + "hi"},
+		{"%uhi", user + "hi"},
+		{"%h.%n.%p.%r.%u", "wap.example.org.wap.22.root." + user},
+		{"%Z", "%!Z"},
+		{"%", "%!(NOVERB)"},
+		{"%d%", home + "%!(NOVERB)"},
+	} {
+		o := host.percent("wap", tt.in)
+		if o != tt.out {
+			t.Errorf("%q: got %q, want %q", tt.in, o, tt.out)
+		}
+	}
+}
