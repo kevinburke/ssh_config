@@ -1,17 +1,13 @@
 on: [push, pull_request]
 name: Test
 jobs:
-  test:
-    strategy:
-      matrix:
-        go-version: [1.17.x, 1.18.x]
-        platform: [ubuntu-latest]
-    runs-on: ${{ matrix.platform }}
+  lint:
+    runs-on: ubuntu-latest
     steps:
     - name: Install Go
       uses: WillAbides/setup-go-faster@main
       with:
-        go-version: ${{ matrix.go-version }}
+        go-version: 1.18.x
     - uses: actions/checkout@v2
       with:
          path: './src/github.com/kevinburke/ssh_config'
@@ -21,5 +17,26 @@ jobs:
         echo "GOPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
         echo "PATH=$GITHUB_WORKSPACE/bin:$PATH" >> $GITHUB_ENV
     - name: Run tests
-      run: make lint race-test
+      run: make lint
+      working-directory: './src/github.com/kevinburke/ssh_config'
+
+  test:
+    strategy:
+      matrix:
+        go-version: [1.17.x, 1.18.x]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install Go
+      uses: WillAbides/setup-go-faster@main
+      with:
+        go-version: ${{ matrix.go-version }}
+    - uses: actions/checkout@v2
+      with:
+         path: './src/github.com/kevinburke/ssh_config'
+    - run: |
+        echo "GO111MODULE=off" >> $GITHUB_ENV
+        echo "GOPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+        echo "PATH=$GITHUB_WORKSPACE/bin:$PATH" >> $GITHUB_ENV
+    - name: Run tests with race detector on
+      run: make race-test
       working-directory: './src/github.com/kevinburke/ssh_config'

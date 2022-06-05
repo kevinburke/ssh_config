@@ -9,11 +9,11 @@ lint: $(STATICCHECK)
 	go vet ./...
 	$(STATICCHECK)
 
-test: lint
+test:
 	@# the timeout helps guard against infinite recursion
 	go test -timeout=250ms ./...
 
-race-test: lint
+race-test:
 	go test -timeout=500ms -race ./...
 
 $(BUMP_VERSION):
