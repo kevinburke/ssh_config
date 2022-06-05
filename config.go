@@ -53,6 +53,8 @@ type configFinder func() string
 // files are parsed and cached the first time Get() or GetStrict() is called.
 type UserSettings struct {
 	IgnoreErrors       bool
+	customConfig       *Config
+	customConfigFinder configFinder
 	systemConfig       *Config
 	systemConfigFinder configFinder
 	userConfig         *Config
@@ -203,6 +205,13 @@ func (u *UserSettings) GetStrict(alias, key string) (string, error) {
 	if u.onceErr != nil && u.IgnoreErrors == false {
 		return "", u.onceErr
 	}
+	// TODO this is getting repetitive
+	if u.customConfig != nil {
+		val, err := findVal(u.customConfig, alias, key)
+		if err != nil || val != "" {
+			return val, err
+		}
+	}
 	val, err := findVal(u.userConfig, alias, key)
 	if err != nil || val != "" {
 		return val, err
@@ -228,6 +237,12 @@ func (u *UserSettings) GetAllStrict(alias, key string) ([]string, error) {
 	if u.onceErr != nil && u.IgnoreErrors == false {
 		return nil, u.onceErr
 	}
+	if u.customConfig != nil {
+		val, err := findAll(u.customConfig, alias, key)
+		if err != nil || val != nil {
+			return val, err
+		}
+	}
 	val, err := findAll(u.userConfig, alias, key)
 	if err != nil || val != nil {
 		return val, err
@@ -243,16 +258,38 @@ func (u *UserSettings) GetAllStrict(alias, key string) ([]string, error) {
 	return []string{}, nil
 }
 
+// ConfigFinder will invoke f to try to find a ssh config file in a custom
+// location on disk, instead of in /etc/ssh or $HOME/.ssh. f should return the
+// name of a file containing SSH configuration.
+//
+// ConfigFinder must be invoked before any calls to Get or GetStrict and panics
+// if f is nil. Most users should not need to use this function.
+func (u *UserSettings) ConfigFinder(f func() string) {
+	if f == nil {
+		panic("cannot call ConfigFinder with nil function")
+	}
+	u.customConfigFinder = f
+}
+
 func (u *UserSettings) doLoadConfigs() {
 	u.loadConfigs.Do(func() {
-		// can't parse user file, that's ok.
 		var filename string
+		var err error
+		if u.customConfigFinder != nil {
+			filename = u.customConfigFinder()
+			u.customConfig, err = parseFile(filename)
+			// IsNotExist should be returned because a user specified this
+			// function - not existing likely means they made an error
+			if err != nil {
+				u.onceErr = err
+			}
+			return
+		}
 		if u.userConfigFinder == nil {
 			filename = userConfigFinder()
 		} else {
 			filename = u.userConfigFinder()
 		}
-		var err error
 		u.userConfig, err = parseFile(filename)
 		//lint:ignore S1002 I prefer it this way
 		if err != nil && os.IsNotExist(err) == false {

@@ -455,3 +455,15 @@ func TestNoTrailingNewline(t *testing.T) {
 		t.Errorf("wrong port: got %q want 4242", port)
 	}
 }
+
+func TestCustomFinder(t *testing.T) {
+	us := &UserSettings{}
+	us.ConfigFinder(func() string {
+		return "testdata/config1"
+	})
+
+	val := us.Get("wap", "User")
+	if val != "root" {
+		t.Errorf("expected to find User root, got %q", val)
+	}
+}

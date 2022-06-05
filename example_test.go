@@ -2,6 +2,7 @@ package ssh_config_test
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/kevinburke/ssh_config"
@@ -45,4 +46,13 @@ func ExampleDefault() {
 	// Output:
 	// 22
 	//
+}
+
+func ExampleUserSettings_ConfigFinder() {
+	// This can be used to test SSH config parsing.
+	u := ssh_config.UserSettings{}
+	u.ConfigFinder(func() string {
+		return filepath.Join("testdata", "test_config")
+	})
+	u.Get("example.com", "Host")
 }
