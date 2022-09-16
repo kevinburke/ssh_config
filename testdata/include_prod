@@ -1,0 +1,17 @@
+### Hosts in the production environment
+
+Host *.prod.dom
+  ForwardAgent yes
+  User srv-prod
+  CertificateFile ~/.ssh/keys.d/id_signed_cert_srv-prod
+  IdentityFile ~/.ssh/keys.d/id_key
+  IdentitiesOnly yes
+
+Host ab8-001.prod.dom
+  Hostname 10.1.0.1
+
+Host ab8-002.prod.dom
+  Hostname 10.1.0.2
+
+Host cd8-003.prod.dom
+  Hostname 10.1.0.3

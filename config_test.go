@@ -2,6 +2,8 @@ package ssh_config
 
 import (
 	"bytes"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -466,4 +468,93 @@ func TestCustomFinder(t *testing.T) {
 	if val != "root" {
 		t.Errorf("expected to find User root, got %q", val)
 	}
+}
+
+func TestAliases(t *testing.T) {
+	testDir, err := os.MkdirTemp(os.TempDir(), "test-aliases")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = os.RemoveAll(testDir)
+	}()
+
+	cp := func(name string) string {
+		bf, err := ioutil.ReadFile(filepath.Join("testdata", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		dest := filepath.Join(testDir, name)
+		err = ioutil.WriteFile(dest, bf, os.ModePerm)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return dest
+	}
+
+	prod := cp("include_prod")
+	test := cp("include_test")
+
+	sconf := fmt.Sprintf("Include %s %s", prod, test)
+	conf := filepath.Join(testDir, "config")
+	err = ioutil.WriteFile(conf, []byte(sconf), os.ModePerm)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rconf, err := os.Open(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config, err := Decode(rconf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertEqual := func(msg string, expected, actual []string) {
+		if len(expected) != len(actual) {
+			t.Fatal(fmt.Sprintf("%s: expected %d, got %d", msg, len(expected), len(actual)))
+		}
+		for i, exp := range expected {
+			if actual[i] != exp {
+				t.Fatal(fmt.Sprintf("%s: at %d, expected %s, got %s", msg, i, exp, actual[i]))
+			}
+		}
+	}
+
+	prodAliases, err := config.HostsAliases("*.prod.dom")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(
+		"prod",
+		[]string{"ab8-001.prod.dom", "ab8-002.prod.dom", "cd8-003.prod.dom"},
+		prodAliases)
+
+	testAliases, err := config.HostsAliases("*.test.dom")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(
+		"test",
+		[]string{"ab8-004.test.dom", "fr5-002.test.dom"},
+		testAliases)
+
+	abAliases, err := config.HostsAliases("ab*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(
+		"ab",
+		[]string{"ab8-001.prod.dom", "ab8-002.prod.dom", "ab8-004.test.dom"},
+		abAliases)
+
+	okAliases, err := config.HostsAliases("ok*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(okAliases) != 0 {
+		t.Fatal("expected no aliases for 'ok*'")
+	}
+
 }

@@ -443,6 +443,47 @@ func (c *Config) GetAll(alias, key string) ([]string, error) {
 	return all, nil
 }
 
+// HostsAliases returns all hosts aliases in the configuration that match the
+// given pattern, or nil if none are present.
+// A host alias matches when its first pattern matches and has a KV node that
+// contains key 'Hostname'.
+func (c *Config) HostsAliases(pattern string) ([]string, error) {
+	p, err := NewPattern(pattern)
+	if err != nil {
+		return nil, err
+	}
+	all := []string(nil)
+	for _, host := range c.Hosts {
+		alias := host.Patterns[0].String()
+		ok := alias == "*" || p.regex.MatchString(alias)
+		if !ok || p.not {
+			continue
+		}
+
+		for _, node := range host.Nodes {
+			switch t := node.(type) {
+			case *Empty:
+				continue
+			case *KV:
+				// "keys are case-insensitive" per the spec
+				lkey := strings.ToLower(t.Key)
+				if lkey == "hostname" {
+					all = append(all, alias)
+				}
+			case *Include:
+				val, _ := t.HostsAliases(pattern)
+				if len(val) > 0 {
+					all = append(all, val...)
+				}
+			default:
+				return nil, fmt.Errorf("unknown Node type %v", t)
+			}
+		}
+	}
+
+	return all, nil
+}
+
 // String returns a string representation of the Config file.
 func (c Config) String() string {
 	return marshal(c).String()
@@ -796,6 +837,25 @@ func (inc *Include) GetAll(alias, key string) ([]string, error) {
 			// stop looking here. But the caller has asked us to find all
 			// instances of the keyword (and could use Get() if they wanted) so
 			// let's keep looking.
+			vals = append(vals, val...)
+		}
+	}
+	return vals, nil
+}
+
+func (inc *Include) HostsAliases(pattern string) ([]string, error) {
+	inc.mu.Lock()
+	defer inc.mu.Unlock()
+	var vals []string
+
+	// TODO: we search files in any order which is not correct
+	for i := range inc.matches {
+		cfg := inc.files[inc.matches[i]]
+		if cfg == nil {
+			panic("nil cfg")
+		}
+		val, err := cfg.HostsAliases(pattern)
+		if err == nil && len(val) != 0 {
 			vals = append(vals, val...)
 		}
 	}

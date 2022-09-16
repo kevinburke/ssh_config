@@ -1,0 +1,13 @@
+### Hosts in the test environment
+
+Host *.test.dom
+  ForwardAgent yes
+  IdentityFile ~/.ssh/keys.d/id_key
+  IdentitiesOnly yes
+  User srv-test
+
+Host ab8-004.test.dom
+  Hostname 10.1.0.4
+
+Host fr5-002.test.dom
+  Hostname 10.1.0.5
