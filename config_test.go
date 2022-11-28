@@ -470,14 +470,12 @@ func TestCustomFinder(t *testing.T) {
 	}
 }
 
-func TestAliases(t *testing.T) {
-	testDir, err := os.MkdirTemp(os.TempDir(), "test-aliases")
+func TestHostAliases(t *testing.T) {
+	testDir, err := os.MkdirTemp(os.TempDir(), "test-host-aliases")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		_ = os.RemoveAll(testDir)
-	}()
+	defer os.RemoveAll(testDir)
 
 	cp := func(name string) string {
 		bf, err := ioutil.ReadFile(filepath.Join("testdata", name))
@@ -513,16 +511,16 @@ func TestAliases(t *testing.T) {
 
 	assertEqual := func(msg string, expected, actual []string) {
 		if len(expected) != len(actual) {
-			t.Fatal(fmt.Sprintf("%s: expected %d, got %d", msg, len(expected), len(actual)))
+			t.Fatalf("%s: expected %d, got %d", msg, len(expected), len(actual))
 		}
 		for i, exp := range expected {
 			if actual[i] != exp {
-				t.Fatal(fmt.Sprintf("%s: at %d, expected %s, got %s", msg, i, exp, actual[i]))
+				t.Fatalf("%s: at %d, expected %s, got %s", msg, i, exp, actual[i])
 			}
 		}
 	}
 
-	prodAliases, err := config.HostsAliases("*.prod.dom")
+	prodAliases, err := config.HostAliases("*.prod.dom")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -531,7 +529,7 @@ func TestAliases(t *testing.T) {
 		[]string{"ab8-001.prod.dom", "ab8-002.prod.dom", "cd8-003.prod.dom"},
 		prodAliases)
 
-	testAliases, err := config.HostsAliases("*.test.dom")
+	testAliases, err := config.HostAliases("*.test.dom")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -540,7 +538,7 @@ func TestAliases(t *testing.T) {
 		[]string{"ab8-004.test.dom", "fr5-002.test.dom"},
 		testAliases)
 
-	abAliases, err := config.HostsAliases("ab*")
+	abAliases, err := config.HostAliases("ab*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -549,7 +547,7 @@ func TestAliases(t *testing.T) {
 		[]string{"ab8-001.prod.dom", "ab8-002.prod.dom", "ab8-004.test.dom"},
 		abAliases)
 
-	okAliases, err := config.HostsAliases("ok*")
+	okAliases, err := config.HostAliases("ok*")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -443,16 +443,16 @@ func (c *Config) GetAll(alias, key string) ([]string, error) {
 	return all, nil
 }
 
-// HostsAliases returns all hosts aliases in the configuration that match the
-// given pattern, or nil if none are present.
+// HostAliases returns all host aliases in the configuration that match the
+// given pattern.
 // A host alias matches when its first pattern matches and has a KV node that
 // contains key 'Hostname'.
-func (c *Config) HostsAliases(pattern string) ([]string, error) {
+func (c *Config) HostAliases(pattern string) ([]string, error) {
 	p, err := NewPattern(pattern)
 	if err != nil {
 		return nil, err
 	}
-	all := []string(nil)
+	all := make([]string, 0)
 	for _, host := range c.Hosts {
 		alias := host.Patterns[0].String()
 		ok := alias == "*" || p.regex.MatchString(alias)
@@ -466,8 +466,7 @@ func (c *Config) HostsAliases(pattern string) ([]string, error) {
 				continue
 			case *KV:
 				// "keys are case-insensitive" per the spec
-				lkey := strings.ToLower(t.Key)
-				if lkey == "hostname" {
+				if strings.EqualFold("hostname", t.Key) {
 					all = append(all, alias)
 				}
 			case *Include:
@@ -854,7 +853,7 @@ func (inc *Include) HostsAliases(pattern string) ([]string, error) {
 		if cfg == nil {
 			panic("nil cfg")
 		}
-		val, err := cfg.HostsAliases(pattern)
+		val, err := cfg.HostAliases(pattern)
 		if err == nil && len(val) != 0 {
 			vals = append(vals, val...)
 		}
