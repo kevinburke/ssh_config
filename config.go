@@ -4,7 +4,7 @@
 // you can manipulate a `ssh_config` file from a program, if your heart desires.
 //
 // The Get() and GetStrict() functions will attempt to read values from
-// $HOME/.ssh/config, falling back to /etc/ssh/ssh_config. The first argument is
+// $HOME/.ssh/config, falling back to /etc/ssh/ssh_config (on linux). The first argument is
 // the host name to match on ("example.com"), and the second argument is the key
 // you want to retrieve ("Port"). The keywords are case-insensitive.
 //
@@ -58,8 +58,10 @@ func UserHomeConfigFileFinder() (string, error) {
 	return filepath.ToSlash(filepath.Join(osUserHome, ".ssh", "config")), nil
 }
 
-// UserSettings checks ~/.ssh and /etc/ssh for configuration files. The config
-// files are parsed and cached the first time Get() or GetStrict() is called.
+// UserSettings checks all files listed via configFiles.
+// The list of available files will be traversed from begin to end.
+// The first file which holds the desired key will be used.
+// The config files are parsed and cached the first time Get() or GetStrict() is called.
 type UserSettings struct {
 	IgnoreErrors bool
 
@@ -70,7 +72,7 @@ type UserSettings struct {
 }
 
 // DefaultUserSettings is the default UserSettings and is used by Get and GetStrict.
-// It checks both $HOME/.ssh/config and /etc/ssh/ssh_config for keys (if supported by your os) ,
+// It checks both $HOME/.ssh/config and /etc/ssh/ssh_config for keys (on linux) ,
 // and it will return parse errors (if any) instead of swallowing them.
 var DefaultUserSettings *UserSettings = nil
 
@@ -313,11 +315,6 @@ func parseWithDepth(filename string, depth uint8) (*Config, error) {
 
 	parent := filepath.Dir(filename)
 	return decodeBytes(b, parent, depth)
-}
-
-func isSystem(filename string) bool {
-	// TODO: not sure this is the best way to detect a system repo
-	return strings.HasPrefix(filepath.Clean(filename), "/etc/ssh")
 }
 
 // Decode reads r into a Config, or returns an error if r could not be parsed as
