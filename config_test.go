@@ -60,6 +60,21 @@ func TestUserSettings(t *testing.T) {
 		return func() (string, error) { return filename, nil }
 	}
 
+	assert := func(t *testing.T, target *UserSettings, host, key, expect string) {
+		val, err := target.GetStrict(host, key)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if val != expect {
+			t.Errorf("wrong port: got %q want %s", val, expect)
+		}
+	}
+
+	asserter := func(target *UserSettings, host, key, expect string) func(t *testing.T) {
+		return func(t *testing.T) { assert(t, target, host, key, expect) }
+	}
+
 	t.Run("WithConfigLocations", func(t *testing.T) {
 
 		obj := &UserSettings{}
@@ -385,19 +400,6 @@ func TestUserSettings(t *testing.T) {
 		finderLayer1 := testConfigFinder("testdata/test_config_fallback_layer1")
 		finderBase := testConfigFinder("testdata/test_config_fallback_base")
 
-		asserter := func(target *UserSettings, host, key, expect string) func(t *testing.T) {
-			return func(t *testing.T) {
-				val, err := target.GetStrict(host, key)
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				if val != expect {
-					t.Errorf("wrong port: got %q want %s", val, expect)
-				}
-			}
-		}
-
 		t.Run("user", func(t *testing.T) {
 			us := &UserSettings{
 				configFiles: []ConfigFileFinder{finderUser, finderLayer2, finderLayer1, finderBase},
@@ -443,53 +445,48 @@ func TestUserSettings(t *testing.T) {
 		})
 	})
 
-}
+	t.Run("Include basic", func(t *testing.T) {
 
-func TestUserHomeConfigFileFinder(t *testing.T) {
+		us := &UserSettings{
+			configFiles: []ConfigFileFinder{testConfigFinder("testdata/include-basic/config")},
+		}
 
-	userHome, err := UserHomeConfigFileFinder()
+		assert(t, us, "kevinburke.ssh_config.test.example.com", "Port", "4567")
+		assert(t, us, "kevinburke.ssh_config.test.example.com", "User", "foobar")
+	})
 
-	if err != nil {
-		t.Fatalf("no error expected; got %v", err)
-	}
+	t.Run("Include recursive", func(t *testing.T) {
 
-	if userHome == "" {
-		t.Errorf("expected a return value; got %q", userHome)
-	}
+		us := &UserSettings{
+			configFiles: []ConfigFileFinder{testConfigFinder("testdata/include-recursive/config")},
+		}
 
-	if !strings.HasSuffix(userHome, "/.ssh/config") {
-		t.Errorf("expected return value to match default windows folders; got %q", userHome)
-	}
+		val, err := us.GetStrict("kevinburke.ssh_config.test.example.com", "Port")
+		if err != ErrDepthExceeded {
+			t.Errorf("Recursive include: expected ErrDepthExceeded, got %v", err)
+		}
+		if val != "" {
+			t.Errorf("non-empty string value %s", val)
+		}
+	})
 
+	t.Run("IncludeString", func(t *testing.T) {
+		data, err := os.ReadFile("testdata/include-basic/config")
+		if err != nil {
+			log.Fatal(err)
+		}
+		c, err := Decode(bytes.NewReader(data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		s := c.String()
+		if s != string(data) {
+			t.Errorf("mismatch: got %q\nwant %q", s, string(data))
+		}
+	})
 }
 
 //TODO: this is not the way to to this!!!
-//
-//var includeFile = []byte(`
-//# This host should not exist, so we can use it for test purposes / it won't
-//# interfere with any other configurations.
-//Host kevinburke.ssh_config.test.example.com
-//    Port 4567
-//`)
-//
-//func TestInclude(t *testing.T) {
-//	if testing.Short() {
-//		t.Skip("skipping fs write in short mode")
-//	}
-//	testPath := filepath.Join(homedir(), ".ssh", "kevinburke-ssh-config-test-file")
-//	err := os.WriteFile(testPath, includeFile, 0644)
-//	if err != nil {
-//		t.Skipf("couldn't write SSH config file: %v", err.Error())
-//	}
-//	defer os.Remove(testPath)
-//	us := &UserSettings{
-//		userConfigFinder: testConfigFinder("testdata/include"),
-//	}
-//	val := us.Get("kevinburke.ssh_config.test.example.com", "Port")
-//	if val != "4567" {
-//		t.Errorf("expected to find Port=4567 in included file, got %q", val)
-//	}
-//}
 //
 //func TestIncludeSystem(t *testing.T) {
 //	if testing.Short() {
@@ -509,51 +506,24 @@ func TestUserHomeConfigFileFinder(t *testing.T) {
 //		t.Errorf("expected to find Port=4567 in included file, got %q", val)
 //	}
 //}
-//
-//var recursiveIncludeFile = []byte(`
-//Host kevinburke.ssh_config.test.example.com
-//	Include kevinburke-ssh-config-recursive-include
-//`)
-//
-//func TestIncludeRecursive(t *testing.T) {
-//	if testing.Short() {
-//		t.Skip("skipping fs write in short mode")
-//	}
-//	testPath := filepath.Join(homedir(), ".ssh", "kevinburke-ssh-config-recursive-include")
-//	err := os.WriteFile(testPath, recursiveIncludeFile, 0644)
-//	if err != nil {
-//		t.Skipf("couldn't write SSH config file: %v", err.Error())
-//	}
-//	defer os.Remove(testPath)
-//	us := &UserSettings{
-//		userConfigFinder: testConfigFinder("testdata/include-recursive"),
-//	}
-//	val, err := us.GetStrict("kevinburke.ssh_config.test.example.com", "Port")
-//	if err != ErrDepthExceeded {
-//		t.Errorf("Recursive include: expected ErrDepthExceeded, got %v", err)
-//	}
-//	if val != "" {
-//		t.Errorf("non-empty string value %s", val)
-//	}
-//}
-//
-//func TestIncludeString(t *testing.T) {
-//	if testing.Short() {
-//		t.Skip("skipping fs write in short mode")
-//	}
-//	data, err := os.ReadFile("testdata/include")
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	c, err := Decode(bytes.NewReader(data))
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	s := c.String()
-//	if s != string(data) {
-//		t.Errorf("mismatch: got %q\nwant %q", s, string(data))
-//	}
-//}
+
+func TestUserHomeConfigFileFinder(t *testing.T) {
+
+	userHome, err := UserHomeConfigFileFinder()
+
+	if err != nil {
+		t.Fatalf("no error expected; got %v", err)
+	}
+
+	if userHome == "" {
+		t.Errorf("expected a return value; got %q", userHome)
+	}
+
+	if !strings.HasSuffix(userHome, "/.ssh/config") {
+		t.Errorf("expected return value to match default windows folders; got %q", userHome)
+	}
+
+}
 
 var matchTests = []struct {
 	in    []string
