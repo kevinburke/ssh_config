@@ -6,9 +6,9 @@
 // The Get() and GetStrict() functions will attempt to read values from
 // $HOME/.ssh/config, falling back to /etc/ssh/ssh_config. The first argument is
 // the host name to match on ("example.com"), and the second argument is the key
-// you want to retrieve ("Port"). The keywords are case insensitive.
+// you want to retrieve ("Port"). The keywords are case-insensitive.
 //
-// 		port := ssh_config.Get("myhost", "Port")
+//	port := ssh_config.Get("myhost", "Port")
 //
 // You can also manipulate an SSH config file and then print it or write it back
 // to disk.
@@ -35,7 +35,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	osuser "os/user"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -47,46 +46,181 @@ const version = "1.2"
 
 var _ = version
 
-type configFinder func() string
+type ConfigFileFinder func() (string, error)
+
+// UserHomeConfigFileFinder return ~/.ssh/config regardless of your current os,
+func UserHomeConfigFileFinder() (string, error) {
+	osUserHome, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.ToSlash(filepath.Join(osUserHome, ".ssh", "config")), nil
+}
 
 // UserSettings checks ~/.ssh and /etc/ssh for configuration files. The config
 // files are parsed and cached the first time Get() or GetStrict() is called.
 type UserSettings struct {
-	IgnoreErrors       bool
-	customConfig       *Config
-	customConfigFinder configFinder
-	systemConfig       *Config
-	systemConfigFinder configFinder
-	userConfig         *Config
-	userConfigFinder   configFinder
-	loadConfigs        sync.Once
-	onceErr            error
+	IgnoreErrors bool
+
+	configFiles []ConfigFileFinder
+	configs     []*Config
+	loadConfigs sync.Once
+	onceErr     error
 }
 
-func homedir() string {
-	user, err := osuser.Current()
-	if err == nil {
-		return user.HomeDir
-	} else {
-		return os.Getenv("HOME")
-	}
-}
-
-func userConfigFinder() string {
-	return filepath.Join(homedir(), ".ssh", "config")
-}
-
-// DefaultUserSettings is the default UserSettings and is used by Get and
-// GetStrict. It checks both $HOME/.ssh/config and /etc/ssh/ssh_config for keys,
+// DefaultUserSettings is the default UserSettings and is used by Get and GetStrict.
+// It checks both $HOME/.ssh/config and /etc/ssh/ssh_config for keys (if supported by your os) ,
 // and it will return parse errors (if any) instead of swallowing them.
-var DefaultUserSettings = &UserSettings{
-	IgnoreErrors:       false,
-	systemConfigFinder: systemConfigFinder,
-	userConfigFinder:   userConfigFinder,
+var DefaultUserSettings *UserSettings = nil
+
+func init() {
+	defaultSettings := UserSettings{IgnoreErrors: false}
+	DefaultUserSettings = defaultSettings.WithConfigLocations(DefaultConfigFileFinders...)
 }
 
-func systemConfigFinder() string {
-	return filepath.Join("/", "etc", "ssh", "ssh_config")
+// WithConfigLocations sets the list of ssh_config files to be searched when using Get, GetAll, GetStrict or
+// GetAllStrict. The list will be traversed from begin to end; the first file which holds the desired key will be used
+func (u *UserSettings) WithConfigLocations(finders ...ConfigFileFinder) *UserSettings {
+	u.configFiles = finders
+	return u
+}
+
+// AddConfigLocations adds a file to the list of ssh_config files to be searched when using Get, GetAll, GetStrict or
+// GetAllStrict. The list will be traversed from begin to end; the first file which holds the desired key will be used
+func (u *UserSettings) AddConfigLocations(finders ...ConfigFileFinder) *UserSettings {
+	u.configFiles = append(u.configFiles, finders...)
+	return u
+}
+
+// GetStrict finds the first value for key within a declaration that matches the
+// alias. If key has a default value and no matching configuration is found, the
+// default will be returned. For more information on default values and the way
+// patterns are matched, see the manpage for ssh_config.
+//
+// error will be non-nil if and only if a user's configuration file or the
+// system configuration file could not be parsed, and u.IgnoreErrors is false.
+func (u *UserSettings) doLoadConfigs() {
+	u.loadConfigs.Do(func() {
+		//use defaults if no ConfigFileFinder where set
+		if len(u.configFiles) == 0 {
+			u.configFiles = DefaultConfigFileFinders
+		}
+
+		var location string
+		var err error
+
+		u.configs = make([]*Config, len(u.configFiles), len(u.configFiles))
+
+		for i := 0; i < len(u.configFiles); i++ {
+			location, err = u.configFiles[i]()
+			if err != nil {
+				u.onceErr = err
+				return
+			}
+
+			u.configs[i], err = parseFile(location)
+			// IsNotExist should be returned because a user specified this
+			// function - not existing likely means they made an error
+			if err != nil {
+				u.onceErr = err
+				return
+			}
+		}
+	})
+}
+
+// Get finds the first value for key within a declaration that matches the
+// alias. Get returns the empty string if no value was found, or if IgnoreErrors
+// is false and we could not parse the configuration file. Use GetStrict to
+// disambiguate the latter cases.
+//
+// All files specified using WithConfigLocations and AddConfigLocations are candidates for the searched alias, key
+// tuple. The list of available files will be traversed from begin to end.
+// The first file which holds the desired key will be used.
+//
+// The match for key is case-insensitive.
+func (u *UserSettings) Get(alias, key string) string {
+	val, err := u.GetStrict(alias, key)
+	if err != nil {
+		return ""
+	}
+	return val
+}
+
+// GetAll retrieves zero or more directives for key for the given alias. GetAll
+// returns nil if no value was found, or if IgnoreErrors is false and we could
+// not parse the configuration file. Use GetStrict to disambiguate the latter
+// cases.
+//
+// All files specified using WithConfigLocations and AddConfigLocations are candidates for the searched alias, key
+// tuple. The list of available files will be traversed from begin to end.
+// The first file which holds the desired key will be used.
+//
+// The match for key is case-insensitive.
+func (u *UserSettings) GetAll(alias, key string) []string {
+	val, _ := u.GetAllStrict(alias, key)
+	return val
+}
+
+// GetStrict finds the first value for key within a declaration that matches the
+// alias. If key has a default value and no matching configuration is found, the
+// default will be returned. For more information on default values and the way
+// patterns are matched, see the manpage for ssh_config.
+//
+// All files specified using WithConfigLocations and AddConfigLocations are candidates for the searched alias, key
+// tuple. The list of available files will be traversed from begin to end.
+// The first file which holds the desired key will be used.
+//
+// The returned error will be non-nil if and only if a user's configuration file
+// or the system configuration file could not be parsed, and u.IgnoreErrors is
+// false.
+func (u *UserSettings) GetStrict(alias, key string) (string, error) {
+	u.doLoadConfigs()
+	//lint:ignore S1002 I prefer it this way
+	if u.onceErr != nil && u.IgnoreErrors == false {
+		return "", u.onceErr
+	}
+
+	for _, c := range u.configs {
+		val, err := findVal(c, alias, key)
+		if err != nil || val != "" {
+			return val, err
+		}
+	}
+
+	return Default(key), nil
+}
+
+// GetAllStrict retrieves zero or more directives for key for the given alias.
+// If key has a default value and no matching configuration is found, the
+// default will be returned. For more information on default values and the way
+// patterns are matched, see the manpage for ssh_config.
+//
+// All files specified using WithConfigLocations and AddConfigLocations are candidates for the searched alias, key
+// tuple. The list of available files will be traversed from begin to end.
+// The first file which holds the desired key will be used.
+//
+// The returned error will be non-nil if and only if a user's configuration file
+// or the system configuration file could not be parsed, and u.IgnoreErrors is
+// false.
+func (u *UserSettings) GetAllStrict(alias, key string) ([]string, error) {
+	u.doLoadConfigs()
+	//lint:ignore S1002 I prefer it this way
+	if u.onceErr != nil && u.IgnoreErrors == false {
+		return nil, u.onceErr
+	}
+	for _, c := range u.configs {
+		val, err := findAll(c, alias, key)
+		if err != nil || val != nil {
+			return val, err
+		}
+	}
+	// TODO: IdentityFile has multiple default values that we should return.
+	if def := Default(key); def != "" {
+		return []string{def}, nil
+	}
+	return []string{}, nil
 }
 
 func findVal(c *Config, alias, key string) (string, error) {
@@ -115,7 +249,7 @@ func findAll(c *Config, alias, key string) ([]string, error) {
 // is false and we could not parse the configuration file. Use GetStrict to
 // disambiguate the latter cases.
 //
-// The match for key is case insensitive.
+// The match for key is case-insensitive.
 //
 // Get is a wrapper around DefaultUserSettings.Get.
 func Get(alias, key string) string {
@@ -131,7 +265,7 @@ func Get(alias, key string) string {
 // However, a subset of ssh configuration values (IdentityFile, for example)
 // allow you to specify multiple directives.
 //
-// The match for key is case insensitive.
+// The match for key is case-insensitive.
 //
 // GetAll is a wrapper around DefaultUserSettings.GetAll.
 func GetAll(alias, key string) []string {
@@ -167,149 +301,6 @@ func GetAllStrict(alias, key string) ([]string, error) {
 	return DefaultUserSettings.GetAllStrict(alias, key)
 }
 
-// Get finds the first value for key within a declaration that matches the
-// alias. Get returns the empty string if no value was found, or if IgnoreErrors
-// is false and we could not parse the configuration file. Use GetStrict to
-// disambiguate the latter cases.
-//
-// The match for key is case insensitive.
-func (u *UserSettings) Get(alias, key string) string {
-	val, err := u.GetStrict(alias, key)
-	if err != nil {
-		return ""
-	}
-	return val
-}
-
-// GetAll retrieves zero or more directives for key for the given alias. GetAll
-// returns nil if no value was found, or if IgnoreErrors is false and we could
-// not parse the configuration file. Use GetStrict to disambiguate the latter
-// cases.
-//
-// The match for key is case insensitive.
-func (u *UserSettings) GetAll(alias, key string) []string {
-	val, _ := u.GetAllStrict(alias, key)
-	return val
-}
-
-// GetStrict finds the first value for key within a declaration that matches the
-// alias. If key has a default value and no matching configuration is found, the
-// default will be returned. For more information on default values and the way
-// patterns are matched, see the manpage for ssh_config.
-//
-// error will be non-nil if and only if a user's configuration file or the
-// system configuration file could not be parsed, and u.IgnoreErrors is false.
-func (u *UserSettings) GetStrict(alias, key string) (string, error) {
-	u.doLoadConfigs()
-	//lint:ignore S1002 I prefer it this way
-	if u.onceErr != nil && u.IgnoreErrors == false {
-		return "", u.onceErr
-	}
-	// TODO this is getting repetitive
-	if u.customConfig != nil {
-		val, err := findVal(u.customConfig, alias, key)
-		if err != nil || val != "" {
-			return val, err
-		}
-	}
-	val, err := findVal(u.userConfig, alias, key)
-	if err != nil || val != "" {
-		return val, err
-	}
-	val2, err2 := findVal(u.systemConfig, alias, key)
-	if err2 != nil || val2 != "" {
-		return val2, err2
-	}
-	return Default(key), nil
-}
-
-// GetAllStrict retrieves zero or more directives for key for the given alias.
-// If key has a default value and no matching configuration is found, the
-// default will be returned. For more information on default values and the way
-// patterns are matched, see the manpage for ssh_config.
-//
-// The returned error will be non-nil if and only if a user's configuration file
-// or the system configuration file could not be parsed, and u.IgnoreErrors is
-// false.
-func (u *UserSettings) GetAllStrict(alias, key string) ([]string, error) {
-	u.doLoadConfigs()
-	//lint:ignore S1002 I prefer it this way
-	if u.onceErr != nil && u.IgnoreErrors == false {
-		return nil, u.onceErr
-	}
-	if u.customConfig != nil {
-		val, err := findAll(u.customConfig, alias, key)
-		if err != nil || val != nil {
-			return val, err
-		}
-	}
-	val, err := findAll(u.userConfig, alias, key)
-	if err != nil || val != nil {
-		return val, err
-	}
-	val2, err2 := findAll(u.systemConfig, alias, key)
-	if err2 != nil || val2 != nil {
-		return val2, err2
-	}
-	// TODO: IdentityFile has multiple default values that we should return.
-	if def := Default(key); def != "" {
-		return []string{def}, nil
-	}
-	return []string{}, nil
-}
-
-// ConfigFinder will invoke f to try to find a ssh config file in a custom
-// location on disk, instead of in /etc/ssh or $HOME/.ssh. f should return the
-// name of a file containing SSH configuration.
-//
-// ConfigFinder must be invoked before any calls to Get or GetStrict and panics
-// if f is nil. Most users should not need to use this function.
-func (u *UserSettings) ConfigFinder(f func() string) {
-	if f == nil {
-		panic("cannot call ConfigFinder with nil function")
-	}
-	u.customConfigFinder = f
-}
-
-func (u *UserSettings) doLoadConfigs() {
-	u.loadConfigs.Do(func() {
-		var filename string
-		var err error
-		if u.customConfigFinder != nil {
-			filename = u.customConfigFinder()
-			u.customConfig, err = parseFile(filename)
-			// IsNotExist should be returned because a user specified this
-			// function - not existing likely means they made an error
-			if err != nil {
-				u.onceErr = err
-			}
-			return
-		}
-		if u.userConfigFinder == nil {
-			filename = userConfigFinder()
-		} else {
-			filename = u.userConfigFinder()
-		}
-		u.userConfig, err = parseFile(filename)
-		//lint:ignore S1002 I prefer it this way
-		if err != nil && os.IsNotExist(err) == false {
-			u.onceErr = err
-			return
-		}
-		if u.systemConfigFinder == nil {
-			filename = systemConfigFinder()
-		} else {
-			filename = u.systemConfigFinder()
-		}
-		u.systemConfig, err = parseFile(filename)
-		//lint:ignore S1002 I prefer it this way
-		if err != nil && os.IsNotExist(err) == false {
-			u.onceErr = err
-			return
-		}
-	})
-}
-
 func parseFile(filename string) (*Config, error) {
 	return parseWithDepth(filename, 0)
 }
@@ -319,7 +310,9 @@ func parseWithDepth(filename string, depth uint8) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	return decodeBytes(b, isSystem(filename), depth)
+
+	parent := filepath.Dir(filename)
+	return decodeBytes(b, parent, depth)
 }
 
 func isSystem(filename string) bool {
@@ -334,16 +327,16 @@ func Decode(r io.Reader) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	return decodeBytes(b, false, 0)
+	return decodeBytes(b, "", 0)
 }
 
 // DecodeBytes reads b into a Config, or returns an error if r could not be
 // parsed as an SSH config file.
 func DecodeBytes(b []byte) (*Config, error) {
-	return decodeBytes(b, false, 0)
+	return decodeBytes(b, "", 0)
 }
 
-func decodeBytes(b []byte, system bool, depth uint8) (c *Config, err error) {
+func decodeBytes(b []byte, cwd string, depth uint8) (c *Config, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if _, ok := r.(runtime.Error); ok {
@@ -357,7 +350,7 @@ func decodeBytes(b []byte, system bool, depth uint8) (c *Config, err error) {
 		}
 	}()
 
-	c = parseSSH(lexSSH(b), system, depth)
+	c = parseSSH(lexSSH(b), cwd, depth)
 	return c, err
 }
 
@@ -374,7 +367,7 @@ type Config struct {
 // contains key. Get returns the empty string if no value was found, or if the
 // Config contains an invalid conditional Include value.
 //
-// The match for key is case insensitive.
+// The match for key is case-insensitive.
 func (c *Config) Get(alias, key string) (string, error) {
 	lowerKey := strings.ToLower(key)
 	for _, host := range c.Hosts {
@@ -386,7 +379,7 @@ func (c *Config) Get(alias, key string) (string, error) {
 			case *Empty:
 				continue
 			case *KV:
-				// "keys are case insensitive" per the spec
+				// "keys are case-insensitive" per the spec
 				lkey := strings.ToLower(t.Key)
 				if lkey == "match" {
 					panic("can't handle Match directives")
@@ -421,7 +414,7 @@ func (c *Config) GetAll(alias, key string) ([]string, error) {
 			case *Empty:
 				continue
 			case *KV:
-				// "keys are case insensitive" per the spec
+				// "keys are case-insensitive" per the spec
 				lkey := strings.ToLower(t.Key)
 				if lkey == "match" {
 					panic("can't handle Match directives")
@@ -711,7 +704,7 @@ func removeDups(arr []string) []string {
 // Configuration files are parsed greedily (e.g. as soon as this function runs).
 // Any error encountered while parsing nested configuration files will be
 // returned.
-func NewInclude(directives []string, hasEquals bool, pos Position, comment string, system bool, depth uint8) (*Include, error) {
+func NewInclude(basePath string, directives []string, hasEquals bool, pos Position, comment string, depth uint8) (*Include, error) {
 	if depth > maxRecurseDepth {
 		return nil, ErrDepthExceeded
 	}
@@ -730,10 +723,8 @@ func NewInclude(directives []string, hasEquals bool, pos Position, comment strin
 		var path string
 		if filepath.IsAbs(directives[i]) {
 			path = directives[i]
-		} else if system {
-			path = filepath.Join("/etc/ssh", directives[i])
 		} else {
-			path = filepath.Join(homedir(), ".ssh", directives[i])
+			path = filepath.Join(basePath, directives[i])
 		}
 		theseMatches, err := filepath.Glob(path)
 		if err != nil {
