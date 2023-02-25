@@ -2,10 +2,10 @@ package ssh_config_test
 
 import (
 	"fmt"
-	"github.com/kevinburke/ssh_config"
 	"path/filepath"
 	"strings"
 )
+import "github.com/kevinburke/ssh_config"
 
 func ExampleHost_Matches() {
 	pat, _ := ssh_config.NewPattern("test.*.example.com")
