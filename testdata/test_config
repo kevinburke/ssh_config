@@ -1,0 +1,3 @@
+Host example.com
+  HostName wap.example.org
+  User root
