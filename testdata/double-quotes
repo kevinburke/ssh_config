@@ -1,0 +1,11 @@
+Host "*.pattern-in-quotes.example.com"
+    HostName pattern-in-quotes.example.com
+
+Host "host with spaces"
+    HostName spaces.example.com
+
+Host h1 "multiple hosts 1" h2 "multiple hosts 2" h3
+    HostName multiple.example.com
+
+Host edge"-case-1.example.com" "edge-case-"2.example.com edge-"case"-3.example.com
+    HostName edge-cases.example.com
