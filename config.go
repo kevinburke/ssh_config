@@ -8,7 +8,7 @@
 // the host name to match on ("example.com"), and the second argument is the key
 // you want to retrieve ("Port"). The keywords are case insensitive.
 //
-// 		port := ssh_config.Get("myhost", "Port")
+//	port := ssh_config.Get("myhost", "Port")
 //
 // You can also manipulate an SSH config file and then print it or write it back
 // to disk.
@@ -59,7 +59,7 @@ type UserSettings struct {
 	systemConfigFinder configFinder
 	userConfig         *Config
 	userConfigFinder   configFinder
-	loadConfigs        sync.Once
+	loadConfigs        *sync.Once
 	onceErr            error
 }
 
@@ -165,6 +165,15 @@ func GetStrict(alias, key string) (string, error) {
 // GetAllStrict is a wrapper around DefaultUserSettings.GetAllStrict.
 func GetAllStrict(alias, key string) ([]string, error) {
 	return DefaultUserSettings.GetAllStrict(alias, key)
+}
+
+// ClearCachedConfigs resets the loaded config so it can be reloaded on the
+// next retrieval.
+//
+// ClearCachedConfigs is a wrapper around
+// DefaultUserSettings.ClearCachedConfigs.
+func ClearCachedConfigs() {
+	DefaultUserSettings.ClearCachedConfigs()
 }
 
 // Get finds the first value for key within a declaration that matches the
@@ -308,6 +317,12 @@ func (u *UserSettings) doLoadConfigs() {
 			return
 		}
 	})
+}
+
+// ClearCachedConfigs resets the loaded config so it can be reloaded on the
+// next retrieval.
+func (u *UserSettings) ClearCachedConfigs() {
+	u.loadConfigs = new(sync.Once)
 }
 
 func parseFile(filename string) (*Config, error) {
