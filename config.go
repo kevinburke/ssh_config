@@ -167,13 +167,12 @@ func GetAllStrict(alias, key string) ([]string, error) {
 	return DefaultUserSettings.GetAllStrict(alias, key)
 }
 
-// ClearCachedConfigs resets the loaded config so it can be reloaded on the
-// next retrieval.
+// ReloadConfigs clears the cached config data and freshly loads the config
+// files again.
 //
-// ClearCachedConfigs is a wrapper around
-// DefaultUserSettings.ClearCachedConfigs.
-func ClearCachedConfigs() {
-	DefaultUserSettings.ClearCachedConfigs()
+// ReloadConfigs is a wrapper around DefaultUserSettings.ReloadConfigs.
+func ReloadConfigs() {
+	DefaultUserSettings.ReloadConfigs()
 }
 
 // Get finds the first value for key within a declaration that matches the
@@ -281,6 +280,9 @@ func (u *UserSettings) ConfigFinder(f func() string) {
 }
 
 func (u *UserSettings) doLoadConfigs() {
+	if u.loadConfigs == nil {
+		u.loadConfigs = new(sync.Once)
+	}
 	u.loadConfigs.Do(func() {
 		var filename string
 		var err error
@@ -319,10 +321,11 @@ func (u *UserSettings) doLoadConfigs() {
 	})
 }
 
-// ClearCachedConfigs resets the loaded config so it can be reloaded on the
-// next retrieval.
-func (u *UserSettings) ClearCachedConfigs() {
+// ReloadConfigs clears the cached config data and freshly loads the config
+// files again.
+func (u *UserSettings) ReloadConfigs() {
 	u.loadConfigs = new(sync.Once)
+	u.doLoadConfigs()
 }
 
 func parseFile(filename string) (*Config, error) {
