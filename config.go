@@ -8,7 +8,7 @@
 // the host name to match on ("example.com"), and the second argument is the key
 // you want to retrieve ("Port"). The keywords are case insensitive.
 //
-// 		port := ssh_config.Get("myhost", "Port")
+//	port := ssh_config.Get("myhost", "Port")
 //
 // You can also manipulate an SSH config file and then print it or write it back
 // to disk.
@@ -59,7 +59,7 @@ type UserSettings struct {
 	systemConfigFinder configFinder
 	userConfig         *Config
 	userConfigFinder   configFinder
-	loadConfigs        sync.Once
+	loadConfigs        *sync.Once
 	onceErr            error
 }
 
@@ -167,6 +167,14 @@ func GetAllStrict(alias, key string) ([]string, error) {
 	return DefaultUserSettings.GetAllStrict(alias, key)
 }
 
+// ReloadConfigs clears the cached config data and freshly loads the config
+// files again.
+//
+// ReloadConfigs is a wrapper around DefaultUserSettings.ReloadConfigs.
+func ReloadConfigs() {
+	DefaultUserSettings.ReloadConfigs()
+}
+
 // Get finds the first value for key within a declaration that matches the
 // alias. Get returns the empty string if no value was found, or if IgnoreErrors
 // is false and we could not parse the configuration file. Use GetStrict to
@@ -272,6 +280,9 @@ func (u *UserSettings) ConfigFinder(f func() string) {
 }
 
 func (u *UserSettings) doLoadConfigs() {
+	if u.loadConfigs == nil {
+		u.loadConfigs = new(sync.Once)
+	}
 	u.loadConfigs.Do(func() {
 		var filename string
 		var err error
@@ -308,6 +319,13 @@ func (u *UserSettings) doLoadConfigs() {
 			return
 		}
 	})
+}
+
+// ReloadConfigs clears the cached config data and freshly loads the config
+// files again.
+func (u *UserSettings) ReloadConfigs() {
+	u.loadConfigs = new(sync.Once)
+	u.doLoadConfigs()
 }
 
 func parseFile(filename string) (*Config, error) {
