@@ -259,6 +259,72 @@ func TestGetEqsign(t *testing.T) {
 	}
 }
 
+var modified1 = []byte(`
+Host wap
+  User modified1
+  KexAlgorithms diffie-hellman-group1-sha1
+`)
+
+var modified2 = []byte(`
+Host wap
+  User modified2
+  KexAlgorithms diffie-hellman-group1-sha1
+`)
+
+func TestCachedConfig(t *testing.T) {
+	us := &UserSettings{
+		userConfigFinder: testConfigFinder("testdata/modified"),
+	}
+
+	err1 := os.WriteFile("testdata/modified", modified1, 0644)
+	if err1 != nil {
+		t.Errorf("error writing to file: %v", err1)
+	}
+
+	val1 := us.Get("wap", "User")
+	if val1 != "modified1" {
+		t.Errorf("expected to find User modified1, got %q", val1)
+	}
+
+	err2 := os.WriteFile("testdata/modified", modified2, 0644)
+	if err1 != nil {
+		t.Errorf("error writing to file: %v", err2)
+	}
+
+	val2 := us.Get("wap", "User")
+	if val2 != "modified1" {
+		t.Errorf("expected to find User modified1, got %q", val2)
+	}
+}
+
+func TestReloadConfigs(t *testing.T) {
+	us := &UserSettings{
+		userConfigFinder: testConfigFinder("testdata/modified"),
+	}
+
+	err1 := os.WriteFile("testdata/modified", modified1, 0644)
+	if err1 != nil {
+		t.Errorf("error writing to file: %v", err1)
+	}
+
+	val1 := us.Get("wap", "User")
+	if val1 != "modified1" {
+		t.Errorf("expected to find User modified1, got %q", val1)
+	}
+
+	err2 := os.WriteFile("testdata/modified", modified2, 0644)
+	if err1 != nil {
+		t.Errorf("error writing to file: %v", err2)
+	}
+
+	us.ReloadConfigs()
+
+	val2 := us.Get("wap", "User")
+	if val2 != "modified2" {
+		t.Errorf("expected to find User modified2, got %q", val2)
+	}
+}
+
 var includeFile = []byte(`
 # This host should not exist, so we can use it for test purposes / it won't
 # interfere with any other configurations.
