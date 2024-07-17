@@ -310,8 +310,7 @@ func (u *UserSettings) doLoadConfigs() {
 			u.onceErr = err
 			return
 		}
-	},
-	)
+	})
 }
 
 func parseFile(filename string, ignoreMatchDirective bool) (*Config, error) {

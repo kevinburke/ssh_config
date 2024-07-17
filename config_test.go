@@ -460,8 +460,7 @@ func TestCustomFinder(t *testing.T) {
 	us := &UserSettings{}
 	us.ConfigFinder(func() string {
 		return "testdata/config1"
-	},
-	)
+	})
 
 	val := us.Get("wap", "User")
 	if val != "root" {
@@ -475,8 +474,7 @@ func TestCustomFinderWhenIgnoringMatchDirective(t *testing.T) {
 	}
 	us.ConfigFinder(func() string {
 		return "testdata/config1-with-match-directive"
-	},
-	)
+	})
 
 	val := us.Get("git.yahoo.com", "HostName")
 	if val != "git.proxy.com" {
@@ -488,8 +486,7 @@ func TestCustomFinderWhenNotIgnoringMatchDirective(t *testing.T) {
 	us := &UserSettings{}
 	us.ConfigFinder(func() string {
 		return "testdata/config1-with-match-directive"
-	},
-	)
+	})
 
 	val := us.Get("git.yahoo.com", "HostName")
 	if val != "" {

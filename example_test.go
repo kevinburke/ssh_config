@@ -53,7 +53,6 @@ func ExampleUserSettings_ConfigFinder() {
 	u := ssh_config.UserSettings{}
 	u.ConfigFinder(func() string {
 		return filepath.Join("testdata", "test_config")
-	},
-	)
+	})
 	u.Get("example.com", "Host")
 }

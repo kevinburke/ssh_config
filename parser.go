@@ -176,8 +176,7 @@ func (p *sshParser) parseComment() sshParserStateFn {
 		// account for the "#" as well
 		leadingSpace: comment.Position.Col - 2,
 		position:     comment.Position,
-	},
-	)
+	})
 	return p.parseStart
 }
 
