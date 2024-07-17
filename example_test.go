@@ -34,7 +34,7 @@ Host *.example.com
   Compression yes
 `
 
-	cfg, _ := ssh_config.Decode(strings.NewReader(config))
+	cfg, _ := ssh_config.Decode(strings.NewReader(config), false)
 	val, _ := cfg.Get("test.example.com", "Compression")
 	fmt.Println(val)
 	// Output: yes
@@ -53,6 +53,7 @@ func ExampleUserSettings_ConfigFinder() {
 	u := ssh_config.UserSettings{}
 	u.ConfigFinder(func() string {
 		return filepath.Join("testdata", "test_config")
-	})
+	},
+	)
 	u.Get("example.com", "Host")
 }

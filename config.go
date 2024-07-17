@@ -8,7 +8,7 @@
 // the host name to match on ("example.com"), and the second argument is the key
 // you want to retrieve ("Port"). The keywords are case insensitive.
 //
-// 		port := ssh_config.Get("myhost", "Port")
+//	port := ssh_config.Get("myhost", "Port")
 //
 // You can also manipulate an SSH config file and then print it or write it back
 // to disk.
@@ -52,15 +52,16 @@ type configFinder func() string
 // UserSettings checks ~/.ssh and /etc/ssh for configuration files. The config
 // files are parsed and cached the first time Get() or GetStrict() is called.
 type UserSettings struct {
-	IgnoreErrors       bool
-	customConfig       *Config
-	customConfigFinder configFinder
-	systemConfig       *Config
-	systemConfigFinder configFinder
-	userConfig         *Config
-	userConfigFinder   configFinder
-	loadConfigs        sync.Once
-	onceErr            error
+	IgnoreErrors         bool
+	IgnoreMatchDirective bool
+	customConfig         *Config
+	customConfigFinder   configFinder
+	systemConfig         *Config
+	systemConfigFinder   configFinder
+	userConfig           *Config
+	userConfigFinder     configFinder
+	loadConfigs          sync.Once
+	onceErr              error
 }
 
 func homedir() string {
@@ -80,9 +81,10 @@ func userConfigFinder() string {
 // GetStrict. It checks both $HOME/.ssh/config and /etc/ssh/ssh_config for keys,
 // and it will return parse errors (if any) instead of swallowing them.
 var DefaultUserSettings = &UserSettings{
-	IgnoreErrors:       false,
-	systemConfigFinder: systemConfigFinder,
-	userConfigFinder:   userConfigFinder,
+	IgnoreErrors:         false,
+	IgnoreMatchDirective: true,
+	systemConfigFinder:   systemConfigFinder,
+	userConfigFinder:     userConfigFinder,
 }
 
 func systemConfigFinder() string {
@@ -277,10 +279,11 @@ func (u *UserSettings) doLoadConfigs() {
 		var err error
 		if u.customConfigFinder != nil {
 			filename = u.customConfigFinder()
-			u.customConfig, err = parseFile(filename)
+			u.customConfig, err = parseFile(filename, u.IgnoreMatchDirective)
 			// IsNotExist should be returned because a user specified this
 			// function - not existing likely means they made an error
-			if err != nil {
+			// We should also respect the ignore flag
+			if err != nil && !u.IgnoreErrors {
 				u.onceErr = err
 			}
 			return
@@ -290,7 +293,7 @@ func (u *UserSettings) doLoadConfigs() {
 		} else {
 			filename = u.userConfigFinder()
 		}
-		u.userConfig, err = parseFile(filename)
+		u.userConfig, err = parseFile(filename, u.IgnoreMatchDirective)
 		//lint:ignore S1002 I prefer it this way
 		if err != nil && os.IsNotExist(err) == false {
 			u.onceErr = err
@@ -301,25 +304,26 @@ func (u *UserSettings) doLoadConfigs() {
 		} else {
 			filename = u.systemConfigFinder()
 		}
-		u.systemConfig, err = parseFile(filename)
+		u.systemConfig, err = parseFile(filename, u.IgnoreMatchDirective)
 		//lint:ignore S1002 I prefer it this way
 		if err != nil && os.IsNotExist(err) == false {
 			u.onceErr = err
 			return
 		}
-	})
+	},
+	)
 }
 
-func parseFile(filename string) (*Config, error) {
-	return parseWithDepth(filename, 0)
+func parseFile(filename string, ignoreMatchDirective bool) (*Config, error) {
+	return parseWithDepth(filename, ignoreMatchDirective, 0)
 }
 
-func parseWithDepth(filename string, depth uint8) (*Config, error) {
+func parseWithDepth(filename string, ignoreMatchDirective bool, depth uint8) (*Config, error) {
 	b, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
-	return decodeBytes(b, isSystem(filename), depth)
+	return decodeBytes(b, isSystem(filename), ignoreMatchDirective, depth)
 }
 
 func isSystem(filename string) bool {
@@ -329,21 +333,21 @@ func isSystem(filename string) bool {
 
 // Decode reads r into a Config, or returns an error if r could not be parsed as
 // an SSH config file.
-func Decode(r io.Reader) (*Config, error) {
+func Decode(r io.Reader, ignoreMatchDirective bool) (*Config, error) {
 	b, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
-	return decodeBytes(b, false, 0)
+	return decodeBytes(b, false, ignoreMatchDirective, 0)
 }
 
 // DecodeBytes reads b into a Config, or returns an error if r could not be
 // parsed as an SSH config file.
-func DecodeBytes(b []byte) (*Config, error) {
-	return decodeBytes(b, false, 0)
+func DecodeBytes(b []byte, ignoreMatchDirective bool) (*Config, error) {
+	return decodeBytes(b, false, ignoreMatchDirective, 0)
 }
 
-func decodeBytes(b []byte, system bool, depth uint8) (c *Config, err error) {
+func decodeBytes(b []byte, system, ignoreMatchDirective bool, depth uint8) (c *Config, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if _, ok := r.(runtime.Error); ok {
@@ -357,7 +361,7 @@ func decodeBytes(b []byte, system bool, depth uint8) (c *Config, err error) {
 		}
 	}()
 
-	c = parseSSH(lexSSH(b), system, depth)
+	c = parseSSH(lexSSH(b), system, ignoreMatchDirective, depth)
 	return c, err
 }
 
@@ -365,9 +369,10 @@ func decodeBytes(b []byte, system bool, depth uint8) (c *Config, err error) {
 type Config struct {
 	// A list of hosts to match against. The file begins with an implicit
 	// "Host *" declaration matching all hosts.
-	Hosts    []*Host
-	depth    uint8
-	position Position
+	Hosts                []*Host
+	depth                uint8
+	position             Position
+	ignoreMatchDirective bool
 }
 
 // Get finds the first value in the configuration that matches the alias and
@@ -388,7 +393,7 @@ func (c *Config) Get(alias, key string) (string, error) {
 			case *KV:
 				// "keys are case insensitive" per the spec
 				lkey := strings.ToLower(t.Key)
-				if lkey == "match" {
+				if lkey == "match" && !c.ignoreMatchDirective {
 					panic("can't handle Match directives")
 				}
 				if lkey == lowerKey {
@@ -711,7 +716,8 @@ func removeDups(arr []string) []string {
 // Configuration files are parsed greedily (e.g. as soon as this function runs).
 // Any error encountered while parsing nested configuration files will be
 // returned.
-func NewInclude(directives []string, hasEquals bool, pos Position, comment string, system bool, depth uint8) (*Include, error) {
+func NewInclude(directives []string, hasEquals bool, pos Position, comment string, system, ignoreMatchDirective bool, depth uint8,
+) (*Include, error) {
 	if depth > maxRecurseDepth {
 		return nil, ErrDepthExceeded
 	}
@@ -744,7 +750,7 @@ func NewInclude(directives []string, hasEquals bool, pos Position, comment strin
 	matches = removeDups(matches)
 	inc.matches = matches
 	for i := range matches {
-		config, err := parseWithDepth(matches[i], depth)
+		config, err := parseWithDepth(matches[i], ignoreMatchDirective, depth)
 		if err != nil {
 			return nil, err
 		}
