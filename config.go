@@ -24,9 +24,6 @@
 //
 //	// Write the cfg back to disk:
 //	fmt.Println(cfg.String())
-//
-// BUG: the Match directive is currently unsupported; parsing a config with
-// a Match directive will trigger an error.
 package ssh_config
 
 import (
@@ -538,6 +535,8 @@ type Host struct {
 	EOLComment string
 	// Whitespace if any between the Host declaration and a trailing comment.
 	spaceBeforeComment string
+	// Whether this Host block was created by a Match directive
+	isMatch bool
 
 	hasEquals    bool
 	leadingSpace int // TODO: handle spaces vs tabs here.

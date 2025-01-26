@@ -105,9 +105,45 @@ func (p *sshParser) parseKV() sshParserStateFn {
 		comment = tok.val
 	}
 	if strings.ToLower(key.val) == "match" {
-		// https://github.com/kevinburke/ssh_config/issues/6
-		p.raiseErrorf(val, "ssh_config: Match directive parsing is unsupported")
-		return nil
+		// Split the value into criteria
+		criteria := strings.Fields(val.val)
+		if len(criteria) < 2 {
+			p.raiseErrorf(val, "ssh_config: Match directive requires at least one criterion")
+			return nil
+		}
+
+		// Currently only supporting Host criterion
+		criterion := strings.ToLower(criteria[0])
+		if criterion != "host" {
+			p.raiseErrorf(val, "ssh_config: Only Match Host is currently supported, got %s", criterion)
+			return nil
+		}
+
+		// Parse the host patterns
+		patterns := make([]*Pattern, 0)
+		for _, strPattern := range criteria[1:] {
+			if strPattern == "" {
+				continue
+			}
+			pat, err := NewPattern(strPattern)
+			if err != nil {
+				p.raiseErrorf(val, "Invalid host pattern: %v", err)
+				return nil
+			}
+			patterns = append(patterns, pat)
+		}
+
+		// Create a new Host block for this Match directive
+		spaceBeforeComment := val.val[len(strings.TrimRightFunc(val.val, unicode.IsSpace)):]
+		p.config.Hosts = append(p.config.Hosts, &Host{
+			Patterns:           patterns,
+			Nodes:              make([]Node, 0),
+			EOLComment:         comment,
+			spaceBeforeComment: spaceBeforeComment,
+			hasEquals:          hasEquals,
+			isMatch:            true,
+		})
+		return p.parseStart
 	}
 	if strings.ToLower(key.val) == "host" {
 		strPatterns := strings.Split(val.val, " ")
