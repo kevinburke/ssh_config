@@ -1,0 +1,6 @@
+Match all
+  Include ~/.ssh
+Host *
+  User usr
+Host git.yahoo.com
+  HostName git.proxy.com
