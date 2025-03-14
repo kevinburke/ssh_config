@@ -732,6 +732,8 @@ func NewInclude(directives []string, hasEquals bool, pos Position, comment strin
 			path = directives[i]
 		} else if system {
 			path = filepath.Join("/etc/ssh", directives[i])
+		} else if strings.HasPrefix(directives[i], "~/") {
+			path = filepath.Join(homedir(), directives[i][2:])
 		} else {
 			path = filepath.Join(homedir(), ".ssh", directives[i])
 		}
