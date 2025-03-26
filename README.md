@@ -69,8 +69,6 @@ Wherever possible we try to implement the specification as documented in
 the `ssh_config` manpage. Unimplemented features should be present in the
 [issues][issues] list.
 
-Notably, the `Match` directive is currently unsupported.
-
 [issues]: https://github.com/kevinburke/ssh_config/issues
 
 ## Errata
