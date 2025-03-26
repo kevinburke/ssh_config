@@ -12,10 +12,8 @@ type sshParser struct {
 	tokensBuffer  []token
 	currentTable  []string
 	seenTableKeys []string
-	// /etc/ssh parser or local parser - used to find the default for relative
-	// filepaths in the Include directive
-	system bool
-	depth  uint8
+	cwd           string
+	depth         uint8
 }
 
 type sshParserStateFn func() sshParserStateFn
@@ -138,7 +136,7 @@ func (p *sshParser) parseKV() sshParserStateFn {
 	}
 	lastHost := p.config.Hosts[len(p.config.Hosts)-1]
 	if strings.ToLower(key.val) == "include" {
-		inc, err := NewInclude(strings.Split(val.val, " "), hasEquals, key.Position, comment, p.system, p.depth+1)
+		inc, err := NewInclude(p.cwd, strings.Split(val.val, " "), hasEquals, key.Position, comment, p.depth+1)
 		if err == ErrDepthExceeded {
 			p.raiseError(val, err)
 			return nil
@@ -177,7 +175,7 @@ func (p *sshParser) parseComment() sshParserStateFn {
 	return p.parseStart
 }
 
-func parseSSH(flow chan token, system bool, depth uint8) *Config {
+func parseSSH(flow chan token, cwd string, depth uint8) *Config {
 	// Ensure we consume tokens to completion even if parser exits early
 	defer func() {
 		for range flow {
@@ -192,7 +190,7 @@ func parseSSH(flow chan token, system bool, depth uint8) *Config {
 		tokensBuffer:  make([]token, 0),
 		currentTable:  make([]string, 0),
 		seenTableKeys: make([]string, 0),
-		system:        system,
+		cwd:           cwd,
 		depth:         depth,
 	}
 	parser.run()

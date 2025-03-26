@@ -1,0 +1,6 @@
+
+Host *
+  Port 23
+
+Host custom
+  User bar

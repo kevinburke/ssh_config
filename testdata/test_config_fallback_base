@@ -1,0 +1,5 @@
+
+
+Host *
+  User foo
+  Port 22
