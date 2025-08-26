@@ -27,7 +27,7 @@ var files = []string{
 func TestDecode(t *testing.T) {
 	for _, filename := range files {
 		data := loadFile(t, filename)
-		cfg, err := Decode(bytes.NewReader(data))
+		cfg, err := Decode(bytes.NewReader(data), false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -339,7 +339,7 @@ func TestIncludeString(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	c, err := Decode(bytes.NewReader(data))
+	c, err := Decode(bytes.NewReader(data), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -465,5 +465,31 @@ func TestCustomFinder(t *testing.T) {
 	val := us.Get("wap", "User")
 	if val != "root" {
 		t.Errorf("expected to find User root, got %q", val)
+	}
+}
+
+func TestCustomFinderWhenIgnoringMatchDirective(t *testing.T) {
+	us := &UserSettings{
+		IgnoreMatchDirective: true,
+	}
+	us.ConfigFinder(func() string {
+		return "testdata/config1-with-match-directive"
+	})
+
+	val := us.Get("git.yahoo.com", "HostName")
+	if val != "git.proxy.com" {
+		t.Errorf("expected to find Hostname git.proxy.com, got %q", val)
+	}
+}
+
+func TestCustomFinderWhenNotIgnoringMatchDirective(t *testing.T) {
+	us := &UserSettings{}
+	us.ConfigFinder(func() string {
+		return "testdata/config1-with-match-directive"
+	})
+
+	val := us.Get("git.yahoo.com", "HostName")
+	if val != "" {
+		t.Errorf("expected to find Hostname empty %q", val)
 	}
 }

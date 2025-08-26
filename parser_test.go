@@ -14,7 +14,7 @@ func (b *errReader) Read(p []byte) (n int, err error) {
 
 func TestIOError(t *testing.T) {
 	buf := &errReader{}
-	_, err := Decode(buf)
+	_, err := Decode(buf, false)
 	if err == nil {
 		t.Fatal("expected non-nil err, got nil")
 	}

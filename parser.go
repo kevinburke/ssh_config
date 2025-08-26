@@ -7,11 +7,12 @@ import (
 )
 
 type sshParser struct {
-	flow          chan token
-	config        *Config
-	tokensBuffer  []token
-	currentTable  []string
-	seenTableKeys []string
+	ignoreMatchDirective bool
+	flow                 chan token
+	config               *Config
+	tokensBuffer         []token
+	currentTable         []string
+	seenTableKeys        []string
 	// /etc/ssh parser or local parser - used to find the default for relative
 	// filepaths in the Include directive
 	system bool
@@ -104,7 +105,7 @@ func (p *sshParser) parseKV() sshParserStateFn {
 		tok = p.getToken()
 		comment = tok.val
 	}
-	if strings.ToLower(key.val) == "match" {
+	if strings.ToLower(key.val) == "match" && !p.ignoreMatchDirective {
 		// https://github.com/kevinburke/ssh_config/issues/6
 		p.raiseErrorf(val, "ssh_config: Match directive parsing is unsupported")
 		return nil
@@ -127,18 +128,20 @@ func (p *sshParser) parseKV() sshParserStateFn {
 		hostval := strings.TrimRightFunc(val.val, unicode.IsSpace)
 		spaceBeforeComment := val.val[len(hostval):]
 		val.val = hostval
+		p.config.ignoreMatchDirective = p.ignoreMatchDirective
 		p.config.Hosts = append(p.config.Hosts, &Host{
 			Patterns:           patterns,
 			Nodes:              make([]Node, 0),
 			EOLComment:         comment,
 			spaceBeforeComment: spaceBeforeComment,
 			hasEquals:          hasEquals,
-		})
+		},
+		)
 		return p.parseStart
 	}
 	lastHost := p.config.Hosts[len(p.config.Hosts)-1]
 	if strings.ToLower(key.val) == "include" {
-		inc, err := NewInclude(strings.Split(val.val, " "), hasEquals, key.Position, comment, p.system, p.depth+1)
+		inc, err := NewInclude(strings.Split(val.val, " "), hasEquals, key.Position, comment, p.system, p.ignoreMatchDirective, p.depth+1)
 		if err == ErrDepthExceeded {
 			p.raiseError(val, err)
 			return nil
@@ -177,7 +180,7 @@ func (p *sshParser) parseComment() sshParserStateFn {
 	return p.parseStart
 }
 
-func parseSSH(flow chan token, system bool, depth uint8) *Config {
+func parseSSH(flow chan token, system, ignoreMatchDirective bool, depth uint8) *Config {
 	// Ensure we consume tokens to completion even if parser exits early
 	defer func() {
 		for range flow {
@@ -187,13 +190,14 @@ func parseSSH(flow chan token, system bool, depth uint8) *Config {
 	result := newConfig()
 	result.position = Position{1, 1}
 	parser := &sshParser{
-		flow:          flow,
-		config:        result,
-		tokensBuffer:  make([]token, 0),
-		currentTable:  make([]string, 0),
-		seenTableKeys: make([]string, 0),
-		system:        system,
-		depth:         depth,
+		ignoreMatchDirective: ignoreMatchDirective,
+		flow:                 flow,
+		config:               result,
+		tokensBuffer:         make([]token, 0),
+		currentTable:         make([]string, 0),
+		seenTableKeys:        make([]string, 0),
+		system:               system,
+		depth:                depth,
 	}
 	parser.run()
 	return result
