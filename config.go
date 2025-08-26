@@ -463,13 +463,18 @@ func marshal(c Config) *bytes.Buffer {
 // Pattern is a pattern in a Host declaration. Patterns are read-only values;
 // create a new one with NewPattern().
 type Pattern struct {
-	str   string // Its appearance in the file, not the value that gets compiled.
-	regex *regexp.Regexp
-	not   bool // True if this is a negated match
+	str           string // Its appearance in the file, not the value that gets compiled.
+	regex         *regexp.Regexp
+	not           bool // True if this is a negated match
+	hasWhitespace bool
 }
 
 // String prints the string representation of the pattern.
 func (p Pattern) String() string {
+	if p.hasWhitespace {
+		return fmt.Sprintf("\"%s\"", p.str)
+	}
+
 	return p.str
 }
 
@@ -498,14 +503,23 @@ func NewPattern(s string) (*Pattern, error) {
 	if s == "" {
 		return nil, errors.New("ssh_config: empty pattern")
 	}
+
 	negated := false
 	if s[0] == '!' {
 		negated = true
 		s = s[1:]
 	}
+
+	hasWhitespace := false
+
 	var buf bytes.Buffer
 	buf.WriteByte('^')
+
 	for i := 0; i < len(s); i++ {
+		if s[i] == ' ' || s[i] == '\t' {
+			hasWhitespace = true
+		}
+
 		// A byte loop is correct because all metacharacters are ASCII.
 		switch b := s[i]; b {
 		case '*':
@@ -520,12 +534,14 @@ func NewPattern(s string) (*Pattern, error) {
 			buf.WriteByte(b)
 		}
 	}
+
 	buf.WriteByte('$')
 	r, err := regexp.Compile(buf.String())
 	if err != nil {
 		return nil, err
 	}
-	return &Pattern{str: s, regex: r, not: negated}, nil
+
+	return &Pattern{str: s, regex: r, not: negated, hasWhitespace: hasWhitespace}, nil
 }
 
 // Host describes a Host directive and the keywords that follow it.
