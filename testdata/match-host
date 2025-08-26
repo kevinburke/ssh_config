@@ -1,0 +1,16 @@
+# Test file for Match Host directives
+Match Host *.example.com !*.test.example.com  # Production servers
+    Port 2222
+    User admin
+    IdentityFile ~/.ssh/prod_key
+
+Host *.example.com
+    Port 22
+    User developer
+    IdentityFile ~/.ssh/dev_key
+
+Match Host build.* deploy.*  # CI/CD servers
+    Port 3333
+    User cicd
+    IdentityFile ~/.ssh/ci_key1
+    IdentityFile ~/.ssh/ci_key2 

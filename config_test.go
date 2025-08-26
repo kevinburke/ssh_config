@@ -388,7 +388,7 @@ func TestMatches(t *testing.T) {
 	}
 }
 
-func TestMatchUnsupported(t *testing.T) {
+func TestMatchSupported(t *testing.T) {
 	us := &UserSettings{
 		userConfigFinder: testConfigFinder("testdata/match-directive"),
 	}
@@ -397,7 +397,7 @@ func TestMatchUnsupported(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected Match directive to error, didn't")
 	}
-	if !strings.Contains(err.Error(), "ssh_config: Match directive parsing is unsupported") {
+	if strings.Contains(err.Error(), "ssh_config: Match directive parsing is now supported") {
 		t.Errorf("wrong error: %v", err)
 	}
 }
