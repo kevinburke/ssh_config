@@ -349,6 +349,32 @@ func TestIncludeString(t *testing.T) {
 	}
 }
 
+var shellIncludeFile = []byte(`
+# This host should not exist, so we can use it for test purposes / it won't
+# interfere with any other configurations.
+Host kevinburke.ssh_config.test.example.com
+    Port 4567
+`)
+
+func TestIncludeShellHomeDirectory(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping fs write in short mode")
+	}
+	testPath := filepath.Join(homedir(), "kevinburke-ssh-config-shell-include")
+	err := ioutil.WriteFile(testPath, shellIncludeFile, 0644)
+	if err != nil {
+		t.Skipf("couldn't write SSH config file: %v", err.Error())
+	}
+	defer os.Remove(testPath)
+	us := &UserSettings{
+		userConfigFinder: testConfigFinder("testdata/include-shell"),
+	}
+	val := us.Get("kevinburke.ssh_config.test.example.com", "Port")
+	if val != "4567" {
+		t.Errorf("expected to find Port=4567 in included file, got %q", val)
+	}
+}
+
 var matchTests = []struct {
 	in    []string
 	alias string
