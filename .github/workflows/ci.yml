@@ -5,10 +5,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Install Go
-      uses: WillAbides/setup-go-faster@main
+      uses: actions/setup-go@v6
       with:
-        go-version: 1.24.x
-    - uses: actions/checkout@v4
+        go-version: 1.25.x
+    - uses: actions/checkout@v5
       with:
          path: './src/github.com/kevinburke/ssh_config'
     # staticcheck needs this for GOPATH
@@ -23,14 +23,14 @@ jobs:
   test:
     strategy:
       matrix:
-        go-version: [1.17.x, 1.18.x, 1.19.x, 1.20.x, 1.21.x, 1.22.x, 1.23.x, 1.24.x]
+        go-version: [1.17.x, 1.18.x, 1.19.x, 1.20.x, 1.21.x, 1.22.x, 1.23.x, 1.24.x, 1.25.x]
     runs-on: ubuntu-latest
     steps:
     - name: Install Go
-      uses: WillAbides/setup-go-faster@main
+      uses: actions/setup-go@v6
       with:
         go-version: ${{ matrix.go-version }}
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
          path: './src/github.com/kevinburke/ssh_config'
     - run: |
