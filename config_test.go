@@ -111,8 +111,7 @@ func TestGetIdentities(t *testing.T) {
 		t.Errorf("expected nil err, got %v", err)
 	}
 	if len(val) != len(defaultProtocol2Identities) {
-		// TODO: return the right values here.
-		log.Printf("expected defaults, got %v", val)
+		t.Errorf("expected defaults, got %v", val)
 	} else {
 		for i, v := range defaultProtocol2Identities {
 			if val[i] != v {
