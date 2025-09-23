@@ -110,7 +110,7 @@ func (p *sshParser) parseKV() sshParserStateFn {
 		return nil
 	}
 	if strings.ToLower(key.val) == "host" {
-		strPatterns := strings.Split(val.val, " ")
+		strPatterns := parseSSHArguments(val.val)
 		patterns := make([]*Pattern, 0)
 		for i := range strPatterns {
 			if strPatterns[i] == "" {
@@ -175,6 +175,35 @@ func (p *sshParser) parseComment() sshParserStateFn {
 		position:     comment.Position,
 	})
 	return p.parseStart
+}
+
+func parseSSHArguments(value string) []string {
+	args := []string{}
+
+	arg := ""
+	quotedArg := false
+
+	for _, r := range value {
+		switch r {
+		case '"':
+			quotedArg = !quotedArg
+		case ' ', '\t':
+			if quotedArg {
+				arg += string(r)
+			} else if len(arg) > 0 {
+				args = append(args, arg)
+				arg = ""
+			}
+		default:
+			arg += string(r)
+		}
+	}
+
+	if len(arg) > 0 {
+		args = append(args, arg)
+	}
+
+	return args
 }
 
 func parseSSH(flow chan token, system bool, depth uint8) *Config {
