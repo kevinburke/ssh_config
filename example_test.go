@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-
-	"github.com/kevinburke/ssh_config"
 )
+import "github.com/kevinburke/ssh_config"
 
 func ExampleHost_Matches() {
 	pat, _ := ssh_config.NewPattern("test.*.example.com")
@@ -48,11 +47,15 @@ func ExampleDefault() {
 	//
 }
 
-func ExampleUserSettings_ConfigFinder() {
+func ExampleConfigFileFinder() {
 	// This can be used to test SSH config parsing.
 	u := ssh_config.UserSettings{}
-	u.ConfigFinder(func() string {
-		return filepath.Join("testdata", "test_config")
+	u.WithConfigLocations(func() (string, error) {
+		return filepath.Join("testdata", "test_config"), nil
 	})
-	u.Get("example.com", "Host")
+
+	fmt.Println(u.Get("example.com", "HostName"))
+	// Output:
+	// wap.example.org
+	//
 }
