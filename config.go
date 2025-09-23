@@ -49,6 +49,13 @@ var _ = version
 
 type configFinder func() string
 
+type config interface {
+	getinternal(alias, key string) string
+}
+
+var _ config = &UserSettings{}
+var _ config = &Config{}
+
 // UserSettings checks ~/.ssh and /etc/ssh for configuration files. The config
 // files are parsed and cached the first time Get() or GetStrict() is called.
 type UserSettings struct {
@@ -181,6 +188,10 @@ func (u *UserSettings) Get(alias, key string) string {
 	return val
 }
 
+func (u *UserSettings) getinternal(alias, key string) string {
+	return u.Get(alias, key)
+}
+
 // GetAll retrieves zero or more directives for key for the given alias. GetAll
 // returns nil if no value was found, or if IgnoreErrors is false and we could
 // not parse the configuration file. Use GetStrict to disambiguate the latter
@@ -251,11 +262,7 @@ func (u *UserSettings) GetAllStrict(alias, key string) ([]string, error) {
 	if err2 != nil || val2 != nil {
 		return val2, err2
 	}
-	// TODO: IdentityFile has multiple default values that we should return.
-	if def := Default(key); def != "" {
-		return []string{def}, nil
-	}
-	return []string{}, nil
+	return DefaultAll(key, alias, u), nil
 }
 
 // ConfigFinder will invoke f to try to find a ssh config file in a custom
@@ -405,6 +412,11 @@ func (c *Config) Get(alias, key string) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+func (c *Config) getinternal(alias, key string) string {
+	v, _ := c.Get(alias, key)
+	return v
 }
 
 // GetAll returns all values in the configuration that match the alias and
