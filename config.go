@@ -167,6 +167,22 @@ func GetAllStrict(alias, key string) ([]string, error) {
 	return DefaultUserSettings.GetAllStrict(alias, key)
 }
 
+// GetHosts returns all hosts in the configurations as well as any included ones.
+func (u *UserSettings) GetHosts() []*Host {
+	u.doLoadConfigs()
+	hosts := make([]*Host, 0)
+	if u.systemConfig != nil {
+		hosts = append(hosts, u.systemConfig.GetHosts()...)
+	}
+	if u.userConfig != nil {
+		hosts = append(hosts, u.userConfig.GetHosts()...)
+	}
+	if u.customConfig != nil {
+		hosts = append(hosts, u.customConfig.GetHosts()...)
+	}
+	return hosts
+}
+
 // Get finds the first value for key within a declaration that matches the
 // alias. Get returns the empty string if no value was found, or if IgnoreErrors
 // is false and we could not parse the configuration file. Use GetStrict to
@@ -405,6 +421,23 @@ func (c *Config) Get(alias, key string) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+// GetHosts returns all hosts in the configuration as well as any included ones.
+func (c *Config) GetHosts() []*Host {
+	hosts := c.Hosts
+	for _, host := range c.Hosts {
+		for _, node := range host.Nodes {
+			switch t := node.(type) {
+			case *Include:
+				// TODO locking required? (t.mu.Lock())
+				for _, cfg := range t.files {
+					hosts = append(hosts, cfg.GetHosts()...)
+				}
+			}
+		}
+	}
+	return hosts
 }
 
 // GetAll returns all values in the configuration that match the alias and
