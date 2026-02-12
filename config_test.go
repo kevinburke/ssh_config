@@ -388,16 +388,14 @@ func TestMatches(t *testing.T) {
 	}
 }
 
-func TestMatchUnsupported(t *testing.T) {
-	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/match-directive"),
-	}
-
-	_, err := us.GetStrict("test.test", "Port")
+func TestMatchExecUnsupported(t *testing.T) {
+	config := `Match Exec "echo hello"
+    Port 2222`
+	_, err := Decode(strings.NewReader(config))
 	if err == nil {
-		t.Fatal("expected Match directive to error, didn't")
+		t.Fatal("expected Match Exec to error, didn't")
 	}
-	if !strings.Contains(err.Error(), "ssh_config: Match directive parsing is unsupported") {
+	if !strings.Contains(err.Error(), "ssh_config: Match Exec is not supported") {
 		t.Errorf("wrong error: %v", err)
 	}
 }
