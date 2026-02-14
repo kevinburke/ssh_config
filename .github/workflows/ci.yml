@@ -8,7 +8,8 @@ jobs:
       uses: actions/setup-go@v6
       with:
         go-version: 1.25.x
-    - uses: actions/checkout@v5
+        cache: false
+    - uses: actions/checkout@v6
       with:
          path: './src/github.com/kevinburke/ssh_config'
     # staticcheck needs this for GOPATH
@@ -30,7 +31,8 @@ jobs:
       uses: actions/setup-go@v6
       with:
         go-version: ${{ matrix.go-version }}
-    - uses: actions/checkout@v5
+        cache: false
+    - uses: actions/checkout@v6
       with:
          path: './src/github.com/kevinburke/ssh_config'
     - run: |
