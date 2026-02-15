@@ -635,6 +635,9 @@ type KV struct {
 	hasEquals       bool
 	leadingSpace    int // Space before the key. TODO handle spaces vs tabs.
 	position        Position
+	// rawValue preserves the original value text (including surrounding double
+	// quotes, if any) so that String() can roundtrip the config file faithfully.
+	rawValue string
 }
 
 // Pos returns k's Position.
@@ -651,7 +654,11 @@ func (k *KV) String() string {
 	if k.hasEquals {
 		equals = " = "
 	}
-	line := strings.Repeat(" ", int(k.leadingSpace)) + k.Key + equals + k.Value + k.spaceAfterValue
+	val := k.Value
+	if k.rawValue != "" {
+		val = k.rawValue
+	}
+	line := strings.Repeat(" ", int(k.leadingSpace)) + k.Key + equals + val + k.spaceAfterValue
 	if k.Comment != "" {
 		line += "#" + k.Comment
 	}

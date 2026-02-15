@@ -130,6 +130,61 @@ func TestGetIdentities(t *testing.T) {
 	}
 }
 
+func TestGetQuotedValues(t *testing.T) {
+	us := &UserSettings{
+		userConfigFinder: testConfigFinder("testdata/quoted-identities"),
+	}
+
+	val, err := us.GetStrict("hasquotedidentity", "IdentityFile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "/Users/testuser/.ssh/quoted_key"
+	if val != want {
+		t.Errorf("IdentityFile with quotes: got %q, want %q", val, want)
+	}
+
+	val, err = us.GetStrict("hasquotedhostname", "HostName")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = "example.com"
+	if val != want {
+		t.Errorf("HostName with quotes: got %q, want %q", val, want)
+	}
+
+	val, err = us.GetStrict("hasunquotedidentity", "IdentityFile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = "/Users/testuser/.ssh/unquoted_key"
+	if val != want {
+		t.Errorf("IdentityFile without quotes: got %q, want %q", val, want)
+	}
+
+	// Verify roundtripping preserves quotes in the output
+	f, err := os.Open("testdata/quoted-identities")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	cfg, err := Decode(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := cfg.MarshalText()
+	if err != nil {
+		t.Fatal(err)
+	}
+	original, err := os.ReadFile("testdata/quoted-identities")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(out) != string(original) {
+		t.Errorf("roundtrip mismatch:\ngot:\n%s\nwant:\n%s", out, original)
+	}
+}
+
 func TestGetInvalidPort(t *testing.T) {
 	us := &UserSettings{
 		userConfigFinder: testConfigFinder("testdata/invalid-port"),

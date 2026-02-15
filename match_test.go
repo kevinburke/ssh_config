@@ -266,8 +266,8 @@ func TestMatchDirectiveInline(t *testing.T) {
 			wantVal: "2222",
 		},
 		{
-			name: "match host trailing spaces",
-			config: "Match Host *.example.com   \n    Port 2222",
+			name:    "match host trailing spaces",
+			config:  "Match Host *.example.com   \n    Port 2222",
 			alias:   "test.example.com",
 			key:     "Port",
 			wantVal: "2222",
