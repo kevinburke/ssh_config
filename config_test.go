@@ -509,6 +509,33 @@ func TestNoTrailingNewline(t *testing.T) {
 	}
 }
 
+func TestEOLCommentSpacing(t *testing.T) {
+	// Reproduces issue #50: programmatically created Host with EOLComment
+	// should have a space before the '#', not "Host foo#comment".
+	pattern, err := NewPattern("example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	host := &Host{
+		Patterns: []*Pattern{pattern},
+		Nodes: []Node{
+			&KV{Key: "  Hostname", Value: "1.2.3.4"},
+		},
+	}
+	host.EOLComment = "my comment"
+	got := host.String()
+	if !strings.Contains(got, "Host example #my comment") {
+		t.Errorf("expected space before comment, got %q", got)
+	}
+
+	// Same issue for KV: programmatically created KV with Comment
+	kv := &KV{Key: "  Port", Value: "22", Comment: "ssh port"}
+	got = kv.String()
+	if !strings.Contains(got, "22 #ssh port") {
+		t.Errorf("expected space before KV comment, got %q", got)
+	}
+}
+
 func TestCustomFinder(t *testing.T) {
 	us := &UserSettings{}
 	us.ConfigFinder(func() string {

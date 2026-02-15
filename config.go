@@ -604,8 +604,12 @@ func (h *Host) String() string {
 				}
 			}
 		}
-		buf.WriteString(h.spaceBeforeComment)
 		if h.EOLComment != "" {
+			if h.spaceBeforeComment != "" {
+				buf.WriteString(h.spaceBeforeComment)
+			} else {
+				buf.WriteByte(' ')
+			}
 			buf.WriteByte('#')
 			buf.WriteString(h.EOLComment)
 		}
@@ -658,9 +662,16 @@ func (k *KV) String() string {
 	if k.rawValue != "" {
 		val = k.rawValue
 	}
-	line := strings.Repeat(" ", int(k.leadingSpace)) + k.Key + equals + val + k.spaceAfterValue
+	line := strings.Repeat(" ", int(k.leadingSpace)) + k.Key + equals + val
 	if k.Comment != "" {
+		if k.spaceAfterValue != "" {
+			line += k.spaceAfterValue
+		} else {
+			line += " "
+		}
 		line += "#" + k.Comment
+	} else {
+		line += k.spaceAfterValue
 	}
 	return line
 }
