@@ -110,23 +110,26 @@ func TestGetIdentities(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected nil err, got %v", err)
 	}
-	if len(val) != len(defaultProtocol2Identities) {
+	if len(val) != len(defaultIdentityFiles) {
 		// TODO: return the right values here.
 		log.Printf("expected defaults, got %v", val)
 	} else {
-		for i, v := range defaultProtocol2Identities {
+		for i, v := range defaultIdentityFiles {
 			if val[i] != v {
 				t.Errorf("invalid %d in val, expected %s got %s", i, v, val[i])
 			}
 		}
 	}
 
+	// "protocol1" host sets Protocol 1, but Protocol is ignored in modern
+	// OpenSSH (only SSH2 exists). No IdentityFile is set for this host, so
+	// the result is empty (IdentityFile has no single default value).
 	val, err = us.GetAllStrict("protocol1", "IdentityFile")
 	if err != nil {
 		t.Errorf("expected nil err, got %v", err)
 	}
-	if len(val) != 1 || val[0] != "~/.ssh/identity" {
-		t.Errorf("expected [\"~/.ssh/identity\"], got %v", val)
+	if len(val) != 0 {
+		t.Errorf("expected [], got %v", val)
 	}
 }
 

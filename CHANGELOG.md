@@ -1,5 +1,43 @@
 # Changes
 
+## Version 1.7 (unreleased)
+
+Update default values to match current openssh-portable (previously based on
+OpenSSH 7.4p1 from 2016).
+
+Breaking changes:
+
+- Remove `Cipher` default (SSH protocol 1 only, deprecated in openssh-portable)
+- Remove `ChallengeResponseAuthentication` default (alias for `KbdInteractiveAuthentication`)
+- Remove `CompressionLevel` default (unsupported in openssh-portable)
+- Remove `Protocol` default (silently ignored in openssh-portable)
+- Remove `RhostsRSAAuthentication` default (SSH protocol 1 only, unsupported)
+- Remove `RSAAuthentication` default (SSH protocol 1 only, unsupported)
+- Remove `UsePrivilegedPort` default (deprecated in openssh-portable)
+- Remove `IdentityFile` default of `~/.ssh/identity` (SSH protocol 1 only)
+- Change `CheckHostIP` default from `"yes"` to `"no"`
+- Change `UpdateHostKeys` default from `"no"` to `"yes"`
+- Change `Ciphers` default to remove CBC ciphers
+- Change `KexAlgorithms` default to add post-quantum algorithms and remove SHA1 variants
+- Change `HostKeyAlgorithms` default to add sk-*, webauthn-*, rsa-sha2-* and remove ssh-rsa
+- Change `HostbasedKeyTypes` default (same as `HostKeyAlgorithms`)
+- Change `PubkeyAcceptedKeyTypes` default (same as `HostKeyAlgorithms`)
+- Change `ForwardX11Timeout` default from `"20m"` to `"1200"` (same duration, now in seconds)
+- Rename `defaultProtocol2Identities` to `defaultIdentityFiles`
+- Remove `~/.ssh/id_dsa` from default identity files
+- Remove `ForwardAgent` from strict yes/no validation (now also accepts a socket path)
+- Remove `CompressionLevel` from uint validation
+
+Other changes:
+
+- Add `ControlPersist` default (`"no"`)
+- Add `RequestTTY` default (`"auto"`)
+- Add `SessionType` default (`"default"`)
+- Add `CASignatureAlgorithms` default
+- Add `HostbasedAcceptedAlgorithms` default (new name for `HostbasedKeyTypes`)
+- Add `PubkeyAcceptedAlgorithms` default (new name for `PubkeyAcceptedKeyTypes`)
+- Add `~/.ssh/id_ecdsa_sk` and `~/.ssh/id_ed25519_sk` to default identity files
+
 ## Version 1.6 (released February 16, 2026)
 
 - Support `~` as the user's home directory in `Include` directives, matching
