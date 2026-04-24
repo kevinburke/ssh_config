@@ -1,5 +1,6 @@
 # ssh_config
 
+
 This is a Go parser for `ssh_config` files. Importantly, this parser attempts
 to preserve comments in a given file, so you can manipulate a `ssh_config` file
 from a program, if your heart desires.
