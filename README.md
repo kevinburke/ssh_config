@@ -42,6 +42,16 @@ Some SSH arguments have default values - for example, the default value for
 given Host/keyword pair exists in the config, we'll return a default for the
 keyword if one exists.
 
+### Reloading SSH config files
+Once the first call to `Get()`, `GetStrict()`, `GetAll()`, or `GetAllStrict()`
+has been made, the contents of the config files will be cached for all future
+calls to any of those functions. The `ReloadConfigs()` function will reset
+this cache and replace it with the current config file contents.
+
+```go
+ssh_config.ReloadConfigs()
+```
+
 ### Manipulating SSH config files
 
 Here's how you can manipulate an SSH config file, and then write it back to
