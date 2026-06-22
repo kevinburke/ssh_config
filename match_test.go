@@ -7,7 +7,8 @@ import (
 
 func TestMatchHostBasic(t *testing.T) {
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/match-host"),
+		userConfigFinder:   testConfigFinder("testdata/match-host"),
+		systemConfigFinder: nullConfigFinder,
 	}
 
 	val := us.Get("dev.example.com", "Port")
@@ -43,7 +44,8 @@ func TestMatchHostNoMatch(t *testing.T) {
 
 func TestMatchHostNegation(t *testing.T) {
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/match-host-negation"),
+		userConfigFinder:   testConfigFinder("testdata/match-host-negation"),
+		systemConfigFinder: nullConfigFinder,
 	}
 
 	// dev.example.com matches *.example.com and is not excluded by
@@ -590,7 +592,8 @@ func TestMatchFileRoundTrip(t *testing.T) {
 // file (which contains "Match all") now parses successfully.
 func TestMatchExistingDirectiveFile(t *testing.T) {
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/match-directive"),
+		userConfigFinder:   testConfigFinder("testdata/match-directive"),
+		systemConfigFinder: nullConfigFinder,
 	}
 	val := us.Get("anyhost", "Port")
 	if val != "4567" {

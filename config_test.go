@@ -48,7 +48,8 @@ func nullConfigFinder() string {
 
 func TestGet(t *testing.T) {
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/config1"),
+		userConfigFinder:   testConfigFinder("testdata/config1"),
+		systemConfigFinder: nullConfigFinder,
 	}
 
 	val := us.Get("wap", "User")
@@ -59,7 +60,8 @@ func TestGet(t *testing.T) {
 
 func TestGetWithDefault(t *testing.T) {
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/config1"),
+		userConfigFinder:   testConfigFinder("testdata/config1"),
+		systemConfigFinder: nullConfigFinder,
 	}
 
 	val, err := us.GetStrict("wap", "PasswordAuthentication")
@@ -73,7 +75,8 @@ func TestGetWithDefault(t *testing.T) {
 
 func TestGetAllWithDefault(t *testing.T) {
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/config1"),
+		userConfigFinder:   testConfigFinder("testdata/config1"),
+		systemConfigFinder: nullConfigFinder,
 	}
 
 	val, err := us.GetAllStrict("wap", "PasswordAuthentication")
@@ -87,7 +90,8 @@ func TestGetAllWithDefault(t *testing.T) {
 
 func TestGetIdentities(t *testing.T) {
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/identities"),
+		userConfigFinder:   testConfigFinder("testdata/identities"),
+		systemConfigFinder: nullConfigFinder,
 	}
 
 	val, err := us.GetAllStrict("hasidentity", "IdentityFile")
@@ -135,7 +139,8 @@ func TestGetIdentities(t *testing.T) {
 
 func TestGetQuotedValues(t *testing.T) {
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/quoted-identities"),
+		userConfigFinder:   testConfigFinder("testdata/quoted-identities"),
+		systemConfigFinder: nullConfigFinder,
 	}
 
 	val, err := us.GetStrict("hasquotedidentity", "IdentityFile")
@@ -190,7 +195,8 @@ func TestGetQuotedValues(t *testing.T) {
 
 func TestGetInvalidPort(t *testing.T) {
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/invalid-port"),
+		userConfigFinder:   testConfigFinder("testdata/invalid-port"),
+		systemConfigFinder: nullConfigFinder,
 	}
 
 	val, err := us.GetStrict("test.test", "Port")
@@ -207,7 +213,8 @@ func TestGetInvalidPort(t *testing.T) {
 
 func TestGetNotFoundNoDefault(t *testing.T) {
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/config1"),
+		userConfigFinder:   testConfigFinder("testdata/config1"),
+		systemConfigFinder: nullConfigFinder,
 	}
 
 	val, err := us.GetStrict("wap", "CanonicalDomains")
@@ -221,7 +228,8 @@ func TestGetNotFoundNoDefault(t *testing.T) {
 
 func TestGetAllNotFoundNoDefault(t *testing.T) {
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/config1"),
+		userConfigFinder:   testConfigFinder("testdata/config1"),
+		systemConfigFinder: nullConfigFinder,
 	}
 
 	val, err := us.GetAllStrict("wap", "CanonicalDomains")
@@ -235,7 +243,8 @@ func TestGetAllNotFoundNoDefault(t *testing.T) {
 
 func TestGetWildcard(t *testing.T) {
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/config3"),
+		userConfigFinder:   testConfigFinder("testdata/config3"),
+		systemConfigFinder: nullConfigFinder,
 	}
 
 	val := us.Get("bastion.stage.i.us.example.net", "Port")
@@ -268,7 +277,8 @@ func TestGetWildcard(t *testing.T) {
 
 func TestGetExtraSpaces(t *testing.T) {
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/extraspace"),
+		userConfigFinder:   testConfigFinder("testdata/extraspace"),
+		systemConfigFinder: nullConfigFinder,
 	}
 
 	val := us.Get("test.test", "Port")
@@ -279,7 +289,8 @@ func TestGetExtraSpaces(t *testing.T) {
 
 func TestGetCaseInsensitive(t *testing.T) {
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/config1"),
+		userConfigFinder:   testConfigFinder("testdata/config1"),
+		systemConfigFinder: nullConfigFinder,
 	}
 
 	val := us.Get("wap", "uSER")
@@ -304,7 +315,8 @@ func TestGetEmpty(t *testing.T) {
 
 func TestGetEqsign(t *testing.T) {
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/eqsign"),
+		userConfigFinder:   testConfigFinder("testdata/eqsign"),
+		systemConfigFinder: nullConfigFinder,
 	}
 
 	val := us.Get("test.test", "Port")
@@ -335,7 +347,8 @@ func TestInclude(t *testing.T) {
 	}
 	defer os.Remove(testPath)
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/include"),
+		userConfigFinder:   testConfigFinder("testdata/include"),
+		systemConfigFinder: nullConfigFinder,
 	}
 	val := us.Get("kevinburke.ssh_config.test.example.com", "Port")
 	if val != "4567" {
@@ -378,7 +391,8 @@ func TestIncludeRecursive(t *testing.T) {
 	}
 	defer os.Remove(testPath)
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/include-recursive"),
+		userConfigFinder:   testConfigFinder("testdata/include-recursive"),
+		systemConfigFinder: nullConfigFinder,
 	}
 	val, err := us.GetStrict("kevinburke.ssh_config.test.example.com", "Port")
 	if err != ErrDepthExceeded {
@@ -425,7 +439,8 @@ func TestIncludeShellHomeDirectory(t *testing.T) {
 	}
 	defer os.Remove(testPath)
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/include-shell"),
+		userConfigFinder:   testConfigFinder("testdata/include-shell"),
+		systemConfigFinder: nullConfigFinder,
 	}
 	val := us.Get("kevinburke.ssh_config.test.example.com", "Port")
 	if val != "4567" {
@@ -486,7 +501,8 @@ func TestMatchExecUnsupported(t *testing.T) {
 
 func TestIndexInRange(t *testing.T) {
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/config4"),
+		userConfigFinder:   testConfigFinder("testdata/config4"),
+		systemConfigFinder: nullConfigFinder,
 	}
 
 	user, err := us.GetStrict("wap", "User")
@@ -500,7 +516,8 @@ func TestIndexInRange(t *testing.T) {
 
 func TestDosLinesEndingsDecode(t *testing.T) {
 	us := &UserSettings{
-		userConfigFinder: testConfigFinder("testdata/dos-lines"),
+		userConfigFinder:   testConfigFinder("testdata/dos-lines"),
+		systemConfigFinder: nullConfigFinder,
 	}
 
 	user, err := us.GetStrict("wap", "User")
