@@ -42,6 +42,23 @@ Some SSH arguments have default values - for example, the default value for
 given Host/keyword pair exists in the config, we'll return a default for the
 keyword if one exists.
 
+### Connecting with x/crypto/ssh
+
+Construct an `*ssh.ClientConfig` and target address directly from configuration:
+
+```go
+clientConfig, err := ssh_config.ClientConfig("myhost")
+if err != nil {
+    log.Fatal(err)
+}
+
+client, err := ssh.Dial("tcp", ssh_config.Address("myhost"), clientConfig)
+if err != nil {
+    log.Fatal(err)
+}
+defer client.Close()
+```
+
 ### Manipulating SSH config files
 
 Here's how you can manipulate an SSH config file, and then write it back to
